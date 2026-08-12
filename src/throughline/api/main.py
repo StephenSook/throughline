@@ -304,6 +304,9 @@ async def dashboard(request: Request) -> HTMLResponse:
             "sources": run.sources if run else [],
             "coverage": run.coverage if run else None,
             "adjudication": (run.summary.get("adjudication") if run else None),
+            "storage": STORE_DB.status(),
+            "timescale": (await STORE_DB.hypertable_stats()),
+            "persistence": (run.summary.get("persistence") if run else None),
             # The worklist keeps strict severity order — it is ranked by
             # consequence to a person, and reordering it to surface a feature
             # would contradict the principle printed above it.
