@@ -50,7 +50,7 @@ export function HistoryBand() {
             color: "var(--muted)",
           }}
         >
-          divergence rate — north star
+          divergence rate: north star
         </span>
       </div>
 
@@ -71,7 +71,7 @@ export function HistoryBand() {
       </div>
 
       <span style={{ fontSize: 11, color: "var(--muted)", flex: 1, minWidth: 260 }}>
-        Stable across <strong>{runs.length}</strong> runs — this falls only when the
+        Stable across <strong>{runs.length}</strong> runs. This falls only when the
         source record is corrected.
         {data.storage?.enabled && (
           <span style={{ fontFamily: MONO, marginLeft: 8 }}>
