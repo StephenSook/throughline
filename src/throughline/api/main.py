@@ -1,17 +1,31 @@
 """Throughline API.
 
-Read-heavy, write-light. This service never claims to be a system of record:
-it reads what independent authorities assert, and reports where they disagree.
+Read-heavy, write-light. This service never claims to be a system of record: it
+reads what independent authorities assert, and reports where they disagree.
+
+Every number returned here is computed from a live public source during a
+reconciliation run. There are no seeded values and no constants standing in for
+measurements, which is why `/api/provenance/{claim_id}` exists: any figure on
+any screen can be walked back to a source URL, a fetch timestamp, and a content
+hash by somebody who does not trust us.
 """
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import os
+from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.templating import Jinja2Templates
+
+from throughline.core.state import STORE, now_iso
 
 APP_VERSION = "0.1.0"
+TEMPLATES = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 
 app = FastAPI(
     title="Throughline",
@@ -32,18 +46,223 @@ app.add_middleware(
 )
 
 
-@app.get("/api/health")
+@app.on_event("startup")
+async def warm() -> None:
+    """Run reconciliation in the background at boot.
+
+    Deliberately not awaited: a Render instance that blocks its port on four
+    third-party APIs fails its health check and never comes up. The dashboard
+    renders a "reconciling" state until the first run lands.
+    """
+
+    async def _run() -> None:
+        with contextlib.suppress(Exception):
+            await STORE.execute(geocode=True)
+
+    asyncio.create_task(_run())
+
+
+def _require_run():
+    run = STORE.active()
+    if run is None:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "error": "no completed reconciliation run yet",
+                "hint": "POST /api/runs to trigger one, or wait for the startup run",
+                "last_error": STORE.last_error,
+            },
+        )
+    return run
+
+
+@app.get("/api/health", tags=["ops"])
 async def health() -> dict:
     """Liveness plus source reachability.
 
-    Deliberately unauthenticated and carrying no record data: it exists so a
-    judge, a monitor, or a caseworker can tell at a glance whether the pipeline
-    is actually reading its sources. Silent staleness is the failure we exist
-    to surface, so this endpoint must never hide one.
+    Unauthenticated and carrying no record data. It exists so a judge, a
+    monitor, or a caseworker can tell at a glance whether the pipeline is
+    actually reading its sources.
     """
+    run = STORE.active()
     return {
         "status": "ok",
         "version": APP_VERSION,
         "commit": os.environ.get("RENDER_GIT_COMMIT", "dev"),
-        "sources": [],
+        "checked_at": now_iso(),
+        "run_id": run.run_id if run else None,
+        "reconciled": run is not None,
+        "degraded": STORE.banner(),
+        "sources": [
+            {
+                "id": s.get("id"),
+                "label": s.get("label"),
+                "ok": s.get("ok"),
+                "row_count": s.get("row_count"),
+                "fetched_at": s.get("fetched_at"),
+                "error": s.get("error"),
+            }
+            for s in (run.sources if run else [])
+        ],
     }
+
+
+@app.get("/api/summary", tags=["findings"])
+async def summary() -> dict:
+    run = _require_run()
+    return {
+        **run.summary,
+        "degraded": STORE.banner(),
+        "sources_healthy": sum(1 for s in run.sources if s.get("ok")),
+        "sources_total": len(run.sources),
+    }
+
+
+@app.get("/api/divergences", tags=["findings"])
+async def divergences(
+    severity: str | None = Query(None),
+    kind: str | None = Query(None),
+    source: str | None = Query(None),
+    limit: int = Query(50, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+) -> dict:
+    run = _require_run()
+    items = run.divergences
+    if severity:
+        items = [d for d in items if str(d.severity) == severity]
+    if kind:
+        items = [d for d in items if str(d.kind) == kind]
+    if source:
+        items = [d for d in items if any(c.source == source for c in d.claims)]
+    window = items[offset : offset + limit]
+    return {
+        "total": len(items),
+        "offset": offset,
+        "limit": limit,
+        "degraded": STORE.banner(),
+        "items": [d.to_dict() for d in window],
+    }
+
+
+@app.get("/api/divergences/{divergence_id}", tags=["findings"])
+async def divergence_detail(divergence_id: str) -> dict:
+    _require_run()
+    found = STORE.divergence(divergence_id)
+    if found is None:
+        raise HTTPException(status_code=404, detail="divergence not found in the active run")
+    return found.to_dict()
+
+
+@app.get("/api/provenance/{claim_id}", tags=["evidence"])
+async def provenance(claim_id: str) -> dict:
+    """The raw source record behind a single claim.
+
+    This endpoint is the reason anybody should believe the rest of the API. It
+    returns the unmodified payload as the authority published it, the URL it
+    came from, when we read it, and its content hash.
+    """
+    _require_run()
+    claim = STORE.claim(claim_id)
+    if claim is None:
+        raise HTTPException(status_code=404, detail="claim not found in the active run")
+    return {
+        "claim_id": claim.claim_id,
+        "subject": claim.subject,
+        "field": claim.field_name,
+        "value": claim.value,
+        "source": claim.source,
+        "source_url": claim.source_url,
+        "fetched_at": claim.fetched_at.isoformat(),
+        "observed_at": claim.observed_at.isoformat() if claim.observed_at else None,
+        "age_days": round(claim.age_days, 1) if claim.age_days is not None else None,
+        "sha256": claim.sha256,
+        "raw_source_record": {k: v for k, v in claim.raw.items() if k != "_geometry"},
+        "verify": (
+            "This record is public and unauthenticated. Open source_url in a browser "
+            "and search for the subject to confirm every field above independently."
+        ),
+    }
+
+
+@app.get("/api/sources", tags=["evidence"])
+async def sources() -> dict:
+    run = _require_run()
+    return {"sources": run.sources, "coverage": run.coverage, "degraded": STORE.banner()}
+
+
+@app.get("/api/matches", tags=["evidence"])
+async def matches(limit: int = Query(100, ge=1, le=1000)) -> dict:
+    """Scored entity-resolution candidates, including the review band.
+
+    Exposed because a supervisor needs to see what we nearly merged, not only
+    what we did merge. A match this system gets wrong is a claim about a real
+    place, so the scoring has to be inspectable.
+    """
+    run = _require_run()
+    return {
+        "total": len(run.candidates),
+        "accept_threshold": 88.0,
+        "review_threshold": 72.0,
+        "items": [
+            {
+                "left": c.left_subject,
+                "right": c.right_subject,
+                "left_source": c.left_source,
+                "right_source": c.right_source,
+                "name_score": c.name_score,
+                "address_score": c.address_score,
+                "combined": c.combined,
+                "decision": c.decision,
+            }
+            for c in run.candidates[:limit]
+        ],
+    }
+
+
+@app.get("/api/timeseries/divergence-rate", tags=["findings"])
+async def timeseries() -> dict:
+    """Divergence rate over time — the north-star metric. It should fall."""
+    _require_run()
+    return {"points": STORE.history, "note": "One point per reconciliation run in this process."}
+
+
+@app.post("/api/runs", tags=["ops"])
+async def trigger_run(geocode: bool = Query(True)) -> JSONResponse:
+    """Trigger a reconciliation run. This is the live demo button."""
+    try:
+        run = await STORE.execute(geocode=geocode)
+    except Exception as exc:  # noqa: BLE001 - reported, never swallowed
+        return JSONResponse(
+            status_code=502,
+            content={"error": "reconciliation failed", "detail": f"{type(exc).__name__}: {exc}"},
+        )
+    return JSONResponse(
+        content={
+            "run_id": run.run_id,
+            "healthy": run.healthy,
+            "elapsed_ms": run.elapsed_ms,
+            "summary": run.summary,
+            "sources": [
+                {"id": s.get("id"), "ok": s.get("ok"), "rows": s.get("row_count")}
+                for s in run.sources
+            ],
+        }
+    )
+
+
+@app.get("/", response_class=HTMLResponse, include_in_schema=False)
+async def dashboard(request: Request) -> HTMLResponse:
+    run = STORE.active()
+    return TEMPLATES.TemplateResponse(
+        request,
+        "dashboard.html",
+        {
+            "run": run,
+            "summary": run.summary if run else None,
+            "sources": run.sources if run else [],
+            "coverage": run.coverage if run else None,
+            "divergences": [d.to_dict() for d in (run.divergences[:40] if run else [])],
+            "banner": STORE.banner(),
+            "version": APP_VERSION,
+        },
+    )
