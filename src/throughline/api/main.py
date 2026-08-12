@@ -256,6 +256,68 @@ async def timeseries(hours: int = Query(168, ge=1, le=8760)) -> dict:
     }
 
 
+@app.get("/api/panel", tags=["ops"])
+async def panel_diagnostics() -> dict:
+    """Which panel seats are configured, and what each one is pointed at.
+
+    Reports configuration only — never a credential, not even a prefix. Exists
+    because a seat that fails in production and works locally is an environment
+    difference, and guessing at which one wastes more time than saying it.
+    """
+    import os as _os
+
+    from throughline.core import adjudicate as adj
+
+    def configured(*keys: str) -> bool:
+        return all(_os.environ.get(k, "").strip() for k in keys)
+
+    account = _os.environ.get("SNOWFLAKE_ACCOUNT", "").strip()
+    return {
+        "seats": [
+            {
+                "model": adj.GEMINI_MODEL,
+                "provider": "Google AI Studio",
+                "configured": configured("GEMINI_API_KEY"),
+                "endpoint": f"{adj.API_ROOT}/{adj.GEMINI_MODEL}:generateContent",
+            },
+            {
+                "model": adj.GEMMA_MODEL,
+                "provider": "Google AI Studio (open weights)",
+                "configured": configured("GEMINI_API_KEY"),
+                "endpoint": f"{adj.API_ROOT}/{adj.GEMMA_MODEL}:generateContent",
+            },
+            {
+                "model": adj.DO_MODEL,
+                "provider": "DigitalOcean Gradient (open weights)",
+                "configured": configured("DIGITAL_OCEAN_API_KEY"),
+                "endpoint": adj.DO_ROOT,
+            },
+            {
+                "model": adj.SNOWFLAKE_MODEL,
+                "provider": "Snowflake Cortex (warehouse-native)",
+                "configured": configured(
+                    "SNOWFLAKE_ACCOUNT", "SNOWFLAKE_USER", "SNOWFLAKE_PRIVATE_KEY"
+                ),
+                "endpoint": (
+                    f"https://{account}.snowflakecomputing.com/api/v2/statements"
+                    if account
+                    else None
+                ),
+                "account_identifier": account or None,
+                "private_key_looks_like_pem": _os.environ.get("SNOWFLAKE_PRIVATE_KEY", "")
+                .strip()
+                .strip("\"'")
+                .lstrip()
+                .startswith("-----BEGIN"),
+            },
+        ],
+        "note": (
+            "A seat that is configured but erroring is reported as an error on every "
+            "finding it touched, never counted as agreement."
+        ),
+    }
+
+
 @app.get("/api/storage", tags=["ops"])
 async def storage() -> dict:
     """Proof the hypertable and continuous aggregate exist, rather than a claim.

@@ -319,7 +319,16 @@ async def _ask_snowflake(client: httpx.AsyncClient, prompt: str) -> dict:
         return {"error": f"unreachable: {type(exc).__name__}"}
 
     if response.status_code not in (200, 202):
-        return {"error": f"HTTP {response.status_code}: {response.text[:180]}"}
+        # Name the host in the error. A 404 from Snowflake is almost always a
+        # wrong account identifier resolving to a real but empty host, and
+        # without the host in the message that is indistinguishable from the
+        # endpoint being gone.
+        return {
+            "error": (
+                f"HTTP {response.status_code} from {account}.snowflakecomputing.com"
+                f" — {response.text[:140]}"
+            )
+        }
 
     try:
         rows = response.json().get("data") or []
