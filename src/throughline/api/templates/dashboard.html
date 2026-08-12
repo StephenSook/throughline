@@ -94,6 +94,30 @@ button:disabled{opacity:.5;cursor:progress}
 .actions{display:flex;gap:14px;align-items:center;margin:22px 0 8px;flex-wrap:wrap}
 #runout{font-family:var(--mono);font-size:12.5px;color:var(--muted)}
 
+/* Adjudication panel. Dissent is shown, never averaged away — a panel that
+   hides disagreement is just an average wearing a panel's clothes. */
+.panel{margin-top:10px;padding:9px 11px;border:1px solid var(--line);
+  border-left:2px solid var(--accent);border-radius:4px;background:var(--bg)}
+.panel-h{font-size:12px;color:var(--muted);margin-bottom:6px}
+.panel-h b{color:var(--ink)}
+.dissent{color:var(--high);font-family:var(--mono);font-size:10.5px;
+  border:1px solid currentColor;border-radius:3px;padding:1px 5px;margin-left:6px}
+.vote{font-size:12px;margin-bottom:4px;line-height:1.45}
+.vm{font-family:var(--mono);font-size:11px;color:var(--ink);font-weight:560}
+.vv{font-family:var(--mono);font-size:10.5px;text-transform:uppercase;
+  letter-spacing:.04em;padding:1px 5px;border-radius:3px;border:1px solid currentColor;
+  margin:0 5px}
+.vv.yes{color:var(--crit)} .vv.no{color:var(--ok)}
+.vc{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.vr{color:var(--muted);display:block;margin-top:2px}
+.verr{font-family:var(--mono);font-size:11px;color:var(--muted);margin-left:6px}
+
+.panelbox{border:1px solid var(--line);border-left:3px solid var(--accent);
+  background:var(--panel);border-radius:5px;padding:16px 18px;margin-top:14px}
+.panelbox .t{font-weight:640;margin-bottom:6px}
+.panelbox p{margin:0;color:var(--muted);font-size:14px}
+.panelbox code{font-family:var(--mono);font-size:12.5px;color:var(--ink)}
+
 .empty{padding:40px 20px;text-align:center;color:var(--muted)}
 footer{margin-top:52px;padding-top:22px;border-top:1px solid var(--line);
   color:var(--muted);font-size:13px}
@@ -183,6 +207,60 @@ hardcoded, and any figure can be walked back to its source record.</p>
 </div>
 {% endif %}
 
+{% if adjudication %}
+<div class="panelbox">
+  <div class="t">Adjudication panel{% if not adjudication.enabled %} — not running{% endif %}</div>
+  {% if adjudication.enabled %}
+  <p>Two models vote independently on whether an <em>already-detected</em> discrepancy is a
+  genuine conflict between authorities or an artefact of formatting and abbreviation:
+  <code>{{ adjudication.models | join(' · ') }}</code>.
+  <b>{{ adjudication.adjudicated }}</b> of <b>{{ adjudication.ambiguous_total }}</b> ambiguous
+  findings adjudicated this run{% if adjudication.not_adjudicated %} (capped at
+  {{ adjudication.limit }} per run; {{ adjudication.not_adjudicated }} not adjudicated, stated
+  rather than silently truncated){% endif %}.<br>
+  {{ adjudication.note }} Every vote and any dissent is shown inline in the worklist below.
+  Delete both models and every deterministic verdict on this page is unchanged.</p>
+  {% else %}
+  <p>{{ adjudication.reason }} {{ adjudication.note or '' }}</p>
+  {% endif %}
+</div>
+{% endif %}
+
+{% if adjudicated %}
+<h2>Panel-adjudicated findings</h2>
+<div class="tblwrap">
+<table>
+<thead><tr><th>Entity</th><th>Discrepancy</th><th>Votes</th></tr></thead>
+<tbody>
+{% for d in adjudicated %}
+<tr>
+  <td><div class="subj">{{ d.subject }}</div><div class="kind">{{ d.kind }} · {{ d.field }}</div></td>
+  <td><div class="vals">
+    {% for v in d['values'] %}
+      <div class="val"><b>{{ v.source }}</b> = {{ v.value if v.value else '(empty)' }}</div>
+    {% endfor %}
+  </div></td>
+  <td>
+    {% if d.adjudication and d.adjudication.votes %}
+    <div class="panel-h">Verdict: <b>{{ d.adjudication.verdict }}</b>
+      {%- if d.adjudication.dissent %} <span class="dissent">models disagreed</span>{% endif %}</div>
+    {% for model, vote in d.adjudication.votes.items() %}
+      <div class="vote"><span class="vm">{{ model }}</span>
+        {%- if vote.error %}<span class="verr">unavailable: {{ vote.error }}</span>
+        {%- else %}<span class="vv {{ 'yes' if vote.is_genuine else 'no' }}">
+          {{ 'genuine' if vote.is_genuine else 'artefact' }}</span>
+          <span class="vc">{{ "%.2f"|format(vote.confidence) }}</span>
+          <span class="vr">{{ vote.rationale }}</span>{% endif %}
+      </div>
+    {% endfor %}
+    {% endif %}
+  </td>
+</tr>
+{% endfor %}
+</tbody></table>
+</div>
+{% endif %}
+
 <h2>Worklist — ranked by consequence, not by age</h2>
 <div class="tblwrap">
 {% if divergences %}
@@ -201,6 +279,27 @@ hardcoded, and any figure can be walked back to its source record.</p>
       · sha {{ v.sha256[:10] }}</div>
     {% endfor %}
     </div>
+    {% if d.adjudication and d.adjudication.votes %}
+    <div class="panel">
+      <div class="panel-h">Panel verdict:
+        <b>{{ d.adjudication.verdict }}</b>
+        {%- if d.adjudication.dissent %} <span class="dissent">models disagreed</span>{% endif %}
+      </div>
+      {% for model, vote in d.adjudication.votes.items() %}
+        <div class="vote">
+          <span class="vm">{{ model }}</span>
+          {%- if vote.error %}
+            <span class="verr">unavailable: {{ vote.error }}</span>
+          {%- else %}
+            <span class="vv {{ 'yes' if vote.is_genuine else 'no' }}">
+              {{ 'genuine' if vote.is_genuine else 'artefact' }}</span>
+            <span class="vc">{{ "%.2f"|format(vote.confidence) }}</span>
+            <span class="vr">{{ vote.rationale }}</span>
+          {%- endif %}
+        </div>
+      {% endfor %}
+    </div>
+    {% endif %}
   </td>
   <td style="font-family:var(--mono);font-size:12.5px">{{ "%.2f"|format(d.confidence) }}</td>
 </tr>

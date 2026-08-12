@@ -17,6 +17,7 @@ from datetime import UTC, datetime
 from .adjudicate import adjudicate
 from .models import Claim, Divergence
 from .pipeline import RunResult, run_reconciliation
+from .store import STORE_DB
 
 
 class RunStore:
@@ -81,6 +82,11 @@ class RunStore:
             if run.healthy:
                 self.golden = run
             self._index(self.active() or run)
+
+            # Append to history. Never allowed to fail a run: the figures are
+            # already computed and correct, and losing them because a database
+            # was unreachable would be a worse outcome than losing the series.
+            run.summary["persistence"] = await STORE_DB.persist(run)
 
             summary = self.active().summary if self.active() else run.summary
             self.history.append(
