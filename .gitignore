@@ -21,3 +21,6 @@ build/
 data/raw/
 node_modules/
 web/dist/
+
+# Local key material. Never committed.
+.secrets/
