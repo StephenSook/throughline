@@ -58,6 +58,25 @@ So Throughline now measures the corroborating authority's coverage before drawin
 
 A tool that inflates its divergence count using a source it never checked the coverage of would be committing the exact failure it exists to detect. The gate is in [`core/diverge.py`](src/throughline/core/diverge.py) and it is tested in both directions.
 
+## One finding, end to end
+
+The clearest single illustration of what the engine does, found on a live run and verifiable by anyone in two browser tabs:
+
+| | City of Atlanta GIS | NCES federal directory |
+|---|---|---|
+| Name | Thomasville Heights Elementary **Facility** | Thomasville Heights Elementary **School** |
+| Identifier | `GADOE_ID 5067` (state) | `ncessch 130012000069` (federal) |
+| **Operational status** | **`A`** — active | **`2`** — closed |
+| Address | 1820 Henry Thomas Dr SE, 30315 | 1820 Henry Thomas Dr SE, 30315 |
+
+Same street address. Neither record carries the other's identifier, so nothing in either system connects them — Throughline matched them on normalized name and address, flagged a `STATUS_CONFLICT`, and the adjudication panel returned *genuine* unanimously.
+
+**What we do and do not claim.** The city record says *Facility* and the federal record says *School*, so it is entirely possible the building is still in active municipal use while the school programme closed. We do not claim Atlanta is unaware a school shut. We claim what the code claims, verbatim from `core/diverge.py`:
+
+> *"Authorities disagree on whether this is operational. A person acting on either record alone would be acting on a contested fact."*
+
+That is the whole product in one row. Not a prediction, not a judgement about which authority is right — just the fact that they disagree, surfaced with both sources attached so a human can go and settle it.
+
 ## Why this matters beyond one dataset
 
 A child in foster care exists simultaneously inside five or six institutions — the child welfare agency, the family court, whichever school district they are enrolled in, Medicaid, the placement provider. None of these systems exchange data reliably. The agency's record is treated as the authoritative account of that child's life, and it is frequently wrong.
