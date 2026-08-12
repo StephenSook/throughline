@@ -1,17 +1,34 @@
-# Throughline
+# THROUGHLINE
 
-**A record-integrity layer.** It reconciles what one institution *asserts* about an entity against independent authorities, and reports typed divergence with provenance and confidence on every field.
+**A record-integrity layer: it reconciles what one institution asserts about an entity against independent authorities, and reports typed divergence with provenance on every field.**
 
-Built at **Hack RenderATL**, 12 August 2026.
+[![CI](https://github.com/StephenSook/throughline/actions/workflows/ci.yml/badge.svg)](https://github.com/StephenSook/throughline/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
+[![Live demo](https://img.shields.io/badge/live%20demo-online-3fb950.svg)](https://throughline-web-gkay.onrender.com)
+[![Python 3.11](https://img.shields.io/badge/python-3.11-3776AB.svg)](./pyproject.toml)
+[![React 18](https://img.shields.io/badge/React-18-61dafb.svg)](./web)
+[![Tests](https://img.shields.io/badge/tests-69%20passing-3fb950.svg)](./tests)
 
-**Dashboard:** https://throughline-web-gkay.onrender.com
-**API:** https://throughline-api-yo1p.onrender.com · [`/docs`](https://throughline-api-yo1p.onrender.com/docs) · [`/openapi.json`](https://throughline-api-yo1p.onrender.com/openapi.json) · [`/api/panel`](https://throughline-api-yo1p.onrender.com/api/panel)
+Built for **Hack RenderATL**, Atlanta, 12 August 2026.
 
----
+Atlanta's open data is not a backdrop here. Three City of Atlanta datasets are the engine's input, the divergence they contain is the finding, and the city is where the consequence lands. Render is not a host we deployed to at the end: a Render Workflow fans out one independently retrying probe per authority and then reconciles, which is what turns a one-off audit into continuous monitoring.
 
-## The finding
+## Live demo
 
-Atlanta's public GIS publishes **`Atlanta_Child_Care_Facilities`**, 681 licensed facilities where children are placed.
+| Surface | Where |
+|---|---|
+| Dashboard | <https://throughline-web-gkay.onrender.com> (React, Render Static Site. Free tier, the first hit may take a moment to warm) |
+| API | <https://throughline-api-yo1p.onrender.com> ([`/docs`](https://throughline-api-yo1p.onrender.com/docs), [`/openapi.json`](https://throughline-api-yo1p.onrender.com/openapi.json)) |
+| Fallback dashboard | <https://throughline-api-yo1p.onrender.com/> (zero-dependency Jinja2, served by the API itself, so the findings survive the static site being down) |
+| Panel seats | <https://throughline-api-yo1p.onrender.com/api/panel> (every seat's provider and endpoint, no credential leaked) |
+| Storage proof | <https://throughline-api-yo1p.onrender.com/api/storage> (the hypertables and the continuous aggregate, live) |
+| Declined merges | <https://throughline-api-yo1p.onrender.com/api/matches> (what entity resolution refused to merge) |
+
+Open the dashboard and press **Run reconciliation**. It fetches five public registries, resolves entities across them with no shared identifier, and returns a ranked worklist in about six seconds. Click any row to see both source records, the rule that fired, the sha256 of the raw claim, and the panel's votes with dissent shown.
+
+## The problem
+
+Atlanta's public GIS publishes `Atlanta_Child_Care_Facilities`: **681 licensed facilities where children are placed.**
 
 Every row carries its own provenance, and it says this:
 
@@ -22,22 +39,28 @@ SOURCEDATE  1634774400000   ->   2021-10-21
 
 That is the Georgia state child care licensing registry, snapshotted on **21 October 2021**, and republished as current ever since. Anyone reading it today, a parent, a researcher, a city service, a caseworker, is reading 2021.
 
-Georgia DECAL's own provider API is auth-gated and returns 401. This dataset is the *only* public view of that registry, and it has been frozen for four years and ten months. Nobody had measured what drifted. Throughline measures it.
+Georgia DECAL's own provider API is auth-gated and returns 401. This dataset is the only public view of that registry, it has been frozen for four years and ten months, and nobody had measured what drifted.
 
-> The product spec this was built from puts it in one line: *"Silent staleness is the disease we are curing."*
+The same failure runs through child welfare, which is where this started. A child in foster care exists simultaneously inside five or six institutions: the child welfare agency, the family court, whichever school district they are enrolled in, Medicaid, the placement provider. None of these systems exchange data reliably. The agency's record is treated as the authoritative account of that child's life, and it is frequently wrong. The consequence is not administrative. It is that a child arrives at a new school with no transcript and sits out for weeks, repeats a class they already passed, or misses a prescription because nobody knew about it.
+
+Real child-welfare records are confidential by federal law, so no honest hackathon project can demo on them. **So we did not fake them.** Throughline runs on real public institutional records from the same city, exhibiting the same failure mode, and every number it reports is genuinely computed from live public APIs.
+
+## Throughline in one loop
+
+> Throughline pulls five public registries that describe overlapping sets of real places, stores every assertion as a dated claim with its source URL and a sha256 of the raw record, resolves the same real place across registries that share no identifier, applies eight deterministic rules to find where two authorities contradict each other, measures whether the corroborating authority covers enough of the population to support an inference at all, sends only the genuinely ambiguous tail to four independent models on four different clouds, writes the run into a TimescaleDB hypertable so the rate can be tracked over time, and serves the result as a worklist ranked by consequence rather than by age.
 
 ## What it found, on a live run
 
-Every figure below is computed during a reconciliation run against live public APIs. Nothing is hardcoded, there is a [test that enforces that](tests/test_no_fabricated_numbers.py), and you can verify any single number yourself via `/api/provenance/{claim_id}`.
+Every figure below is computed during a reconciliation run against live public APIs. Nothing is hardcoded, [a test enforces that](tests/test_no_fabricated_numbers.py), and every number is regenerated into [`docs/FACTS.json`](docs/FACTS.json) by a real run so the README, the demo narration and the submission all read from one file and cannot drift apart.
 
-| | |
+| Measure | Value |
 |---|---|
 | Entities resolved across 5 authorities | **1,344** |
 | Claims ingested | **6,385** |
 | Divergences detected | **813** |
-| Critical (asserted 4.8 years ago, served as current) | **658** |
+| Asserted 4.8 years ago, served as current | **658** |
 | Published coordinates conflicting with the federal geocode | **69** |
-| Addresses the U.S. Census Bureau **cannot resolve** | **58** |
+| Addresses the U.S. Census Bureau cannot resolve | **58** |
 | ZIP codes two authorities disagree on | **14** |
 | Addresses local and federal records disagree on | **10** |
 | Records carrying a live identifier and an empty address | **3** |
@@ -45,7 +68,13 @@ Every figure below is computed during a reconciliation run against live public A
 | **Divergence rate** | **51.9%** |
 | Full pipeline, five live APIs, wall time | **6.4s** |
 
-Run it yourself: press **Run reconciliation** on the live dashboard, or `POST /api/runs`. Every figure above is regenerated by [`docs/FACTS.json`](docs/FACTS.json), written by a real run, the README, the demo narration and the submission all read from that one file so they cannot drift apart.
+Verify any single one of them:
+
+```bash
+curl https://throughline-api-yo1p.onrender.com/api/summary
+curl 'https://throughline-api-yo1p.onrender.com/api/divergences?limit=5'
+curl https://throughline-api-yo1p.onrender.com/api/provenance/<claim_id>
+```
 
 ## The number we refused to report
 
@@ -53,15 +82,15 @@ The first run produced **1,331** divergences, of which 656 were "listed as OPEN 
 
 That number was wrong, and it was wrong in our favour.
 
-The City of Atlanta's published 2026 licence roll contains **506 records for the entire city**, of which **6** are classified as child day care. A registry of 681 facilities cannot be refuted by a roll that small, absence from it carries almost no information.
+The City of Atlanta's published 2026 licence roll contains **506 records for the entire city**, of which **6** are classified as child day care. A registry of 681 facilities cannot be refuted by a roll that small. Absence from it carries almost no information.
 
-So Throughline now measures the corroborating authority's coverage before drawing any inference from absence. It found the licence roll corroborates **2 of 659** entities, **0.3%**, against a required 25%, so the rule **suppresses itself** and says why, on the dashboard, in the API, and here. That is roughly 650 findings we could have reported and did not.
+So Throughline now measures the corroborating authority's coverage before drawing any inference from absence. It found the licence roll corroborates **2 of 659** entities, **0.3%**, against a required 25%, so the rule **suppresses itself** and says why: on the dashboard, in the API, and here. That is roughly 650 findings we could have reported and did not.
 
-A tool that inflates its divergence count using a source it never checked the coverage of would be committing the exact failure it exists to detect. The gate is in [`core/diverge.py`](src/throughline/core/diverge.py) and it is tested in both directions.
+A tool that inflated its divergence count using a source it never checked the coverage of would be committing the exact failure it exists to detect. The gate is in [`core/diverge.py`](src/throughline/core/diverge.py) and it is tested in both directions.
 
 ## One finding, end to end
 
-The clearest single illustration of what the engine does, found on a live run and verifiable by anyone in two browser tabs:
+Found on a live run, and verifiable by anyone in two browser tabs:
 
 | | City of Atlanta GIS | NCES federal directory |
 |---|---|---|
@@ -70,68 +99,77 @@ The clearest single illustration of what the engine does, found on a live run an
 | **Operational status** | **`A`**, active | **`2`**, closed |
 | Address | 1820 Henry Thomas Dr SE, 30315 | 1820 Henry Thomas Dr SE, 30315 |
 
-Same street address. Neither record carries the other's identifier, so nothing in either system connects them. Throughline matched them on normalized name and address, flagged a `STATUS_CONFLICT`, and the adjudication panel returned *genuine* unanimously.
+Same street address. Neither record carries the other's identifier, so nothing in either system connects them. Throughline matched them on normalized name and address, flagged a `STATUS_CONFLICT`, and all four panel seats returned *genuine* independently.
 
 **What we do and do not claim.** The city record says *Facility* and the federal record says *School*, so it is entirely possible the building is still in active municipal use while the school programme closed. We do not claim Atlanta is unaware a school shut. We claim what the code claims, verbatim from `core/diverge.py`:
 
 > *"Authorities disagree on whether this is operational. A person acting on either record alone would be acting on a contested fact."*
 
-That is the whole product in one row. Not a prediction, not a judgement about which authority is right, just the fact that they disagree, surfaced with both sources attached so a human can go and settle it.
+Not a prediction, not a judgement about which authority is right, just the fact that they disagree, surfaced with both sources attached so a human can go and settle it.
 
-## Why this matters beyond one dataset
+## Architecture
 
-A child in foster care exists simultaneously inside five or six institutions, the child welfare agency, the family court, whichever school district they are enrolled in, Medicaid, the placement provider. None of these systems exchange data reliably. The agency's record is treated as the authoritative account of that child's life, and it is frequently wrong.
+```mermaid
+flowchart TB
+  subgraph SRC["Five public authorities, no authentication on any"]
+    direction LR
+    CC["Atlanta Child Care Facilities<br/>681 rows, the city's copy of the GA DECAL registry"]
+    BL["Atlanta Business Licenses 2026<br/>506 rows"]
+    AS["Atlanta Public Schools<br/>132 rows, carries GADOE_ID"]
+    FS["NCES Common Core of Data<br/>88 rows, carries ncessch"]
+    GC["US Census Geocoder<br/>the federal address authority"]
+  end
 
-The consequence is not administrative. It is that a child arrives at a new school with no transcript and sits out for weeks, repeats a class they already passed, or misses a prescription because nobody knew about it.
+  SRC -->|"validate payload shape, never the status line"| CONN["connectors/<br/>a WAF challenge arrives as HTTP 200"]
+  CONN --> STORE[("Claim store<br/>append-only, length-prefixed id, sha256 of the raw record")]
+  STORE --> RES["Entity resolution<br/>no shared key: blocking, rapidfuzz, address normalization"]
+  RES -.->|"score 72 to 88, declines to merge"| BAND["Review band<br/>kept and exposed, never dropped"]
+  RES --> DIV["Divergence engine<br/>eight deterministic rules, no model runs here"]
+  DIV --> GATE{"Coverage gate<br/>can this authority support the inference at all?"}
+  GATE -->|"0.3% of 25% required, the rule suppresses itself"| SUPP["Suppressed, and says why"]
+  GATE -->|"sufficient"| OUT["Typed divergence<br/>severity, provenance, both sources attached"]
+  OUT --> TS[("TimescaleDB on Tiger Cloud<br/>hypertables, continuous aggregate, compression")]
 
-Real child-welfare records are confidential by federal law, so no honest hackathon project can demo on them. **So we did not fake them.** Throughline runs on real public institutional records from the same city, exhibiting the same failure mode, and every number it reports is genuinely computed from live public APIs.
+  subgraph PANEL["Adjudication panel: four seats, four clouds, ambiguous tail only"]
+    direction LR
+    P1["gemini-3.6-flash<br/>Google AI Studio"]
+    P2["gemma-4-31b-it<br/>open weights, on-premises path"]
+    P3["openai-gpt-oss-120b<br/>DigitalOcean Gradient"]
+    P4["llama3.3-70b<br/>Snowflake Cortex, warehouse-native"]
+  end
 
-## How it works
-
+  OUT <-.->|"genuine or formatting artefact. Never a count, never a severity"| PANEL
+  TS --> API["FastAPI<br/>ranked worklist, provenance, sources, storage, panel"]
+  API --> WEB["React dashboard<br/>Render Static Site"]
+  API --> JIN["Jinja2 dashboard<br/>zero dependency, served by the API itself"]
+  WF["Render Workflow<br/>check_source fans out one retrying probe per authority"] -->|"then reconcile, then monitor, on a schedule"| CONN
 ```
-FIVE REAL PUBLIC SOURCES  (no authentication on any of them)
- ├─ Atlanta Child Care Facilities   681 rows   the city's copy of the GA DECAL registry
- ├─ Atlanta Business Licenses 2026  506 rows   the city's own licence roll
- ├─ Atlanta Public Schools          132 rows   carries GADOE_ID (state id)
- ├─ NCES Common Core of Data         88 rows   carries ncessch (federal id)
- └─ US Census Geocoder                          the federal address authority
-            │
-            ▼   connectors/   validate content, never status codes
-      CLAIM STORE      append-only. (entity, field, value, source, observed_at, sha256)
-            ▼
-      ENTITY RESOLUTION    no shared key. blocking + rapidfuzz + address normalization
-                           explicit review band where we decline to merge
-            ▼
-      DIVERGENCE ENGINE    eight deterministic rules. no model runs here.
-            ▼
-      COVERAGE GATE        can this authority support the inference at all?
-            ▼
-      ADJUDICATION PANEL   three voters on three clouds, ambiguous tail only
-            ▼
-      TIMESCALEDB      hypertables + continuous aggregate + compression
-            ▼
-      FastAPI · ranked worklist · provenance API · hash-verifiable claims
 
-  RENDER WORKFLOW   fans out one retrying probe per authority, then reconciles
-                    on a schedule. Continuous monitoring, not a one-off audit.
-```
+What the picture cannot show is the boundary that matters most. The dotted edge into the panel is the only place a model touches this system, and it is the only edge you can delete without changing a single number on any screen. Everything upstream of it is deterministic Python, so every verdict is reproducible by hand from public URLs. The engine modules are forbidden from importing the model layer, and [a test enforces that](tests/test_no_fabricated_numbers.py) rather than a convention.
 
-### The parts that are ours
+- `src/throughline/connectors/` fetches the five authorities and validates content, not status codes.
+- `src/throughline/core/` holds the parts that are ours: `resolve.py` (entity resolution), `normalize.py` (address normalization), `diverge.py` (the eight rules and the coverage gate), `store.py` (TimescaleDB persistence), `adjudicate.py` (the panel), `pipeline.py` (one run, shared by the API, the CLI and the Workflow so they cannot drift).
+- `web/src/components/` is the React dashboard: `Worklist`, `DetailPanel`, `ProvenanceCard`, `AdjudicationVotes`, `CoveragePanel`, `HistoryBand`, `StatTiles`.
+- `workflow.py` registers three Render Workflow tasks: `check_source`, `reconcile`, `monitor`.
 
-This is not a wrapper around a model API. **Delete all three models and Throughline still ingests five public sources, resolves entities across them with no shared identifier, computes seven kinds of divergence, gates them on measured coverage, persists the series, and reports a rate.** [A test enforces that boundary](tests/test_no_fabricated_numbers.py), the engine modules are forbidden from importing the model layer.
+## What is real
 
-Built here, not bought:
+| Component | Status | What it is |
+|---|---|---|
+| Five public connectors | **WIRED LIVE** | No authentication on any. Reproducible by a stranger from the URLs below |
+| Entity resolution | **WIRED LIVE** | `core/resolve.py`, accept above 88, refuse below 72, review band between |
+| Eight divergence rules | **WIRED LIVE** | `core/diverge.py`, deterministic, seven kinds observed on the current run |
+| Coverage gate | **WIRED LIVE** | Suppressing its own largest rule right now, visible at `/api/summary` |
+| TimescaleDB on Tiger Cloud | **WIRED LIVE** | 2.29.1, two hypertables, `divergence_rate_hourly` continuous aggregate, compression on closed chunks. Proof at `/api/storage` |
+| Render Workflow | **WIRED LIVE** | `workflow.py`, three registered tasks, fan-out with per-task retry |
+| Four-seat panel | **WIRED LIVE** | All four seats configured and returning verdicts. Proof at `/api/panel` |
+| React dashboard | **WIRED LIVE** | Render Static Site, reading the live API |
 
-- **Entity resolution with no shared key** ([`core/resolve.py`](src/throughline/core/resolve.py)). Blocking on ZIP and name head, rapidfuzz scoring with address weighted above name, and an explicit review band (72-88) where the system **declines to merge** rather than guess. Unmatched records are kept, never dropped: a facility that appears in the stale registry and nowhere else is the most interesting row in the dataset, and dropping it would flatter the rate.
-- **Address normalization** ([`core/normalize.py`](src/throughline/core/normalize.py)). Atlanta is quadrant-addressed, so `NW` versus `NE` is load-bearing, dropping the directional would merge two genuinely different places.
-- **Eight deterministic rules** ([`core/diverge.py`](src/throughline/core/diverge.py)) covering staleness, unresolvable addresses, geo divergence, ZIP and address mismatch, status conflict, empty required fields, and missing-in-authority. No model runs here, so every verdict is reproducible by hand from public URLs.
-- **A Render Workflow** ([`workflow.py`](workflow.py)) that fans out one independently-retrying probe per authority, then reconciles. Continuous monitoring is what the spec's Phase 1 actually asks for.
-- **The coverage gate**, above.
-- **Provenance on every claim** ([`core/models.py`](src/throughline/core/models.py)). Claim identity is length-prefixed, never separator-joined, so a delimiter inside third-party data cannot collide two distinct claims into one.
+Planned and deliberately not shipped: a scheduled Workflow trigger, and the 2025 licence roll for a year-over-year series. Neither is claimed above.
 
-### Where the models are used
+## Where the models are used
 
-Only on the ambiguous tail, and only to answer one question: is this discrepancy a genuine conflict, or an artefact of formatting? **Three independent voters on three different clouds**, every vote stored and displayed with its rationale, dissent included:
+Only on the ambiguous tail, and only to answer one question: is this discrepancy a genuine conflict, or an artefact of formatting? Every vote is stored and displayed with its rationale, dissent included.
 
 | Seat | Model | Provider | Why it is there |
 |---|---|---|---|
@@ -140,64 +178,22 @@ Only on the ambiguous tail, and only to answer one question: is this discrepancy
 | 3 | `openai-gpt-oss-120b` | DigitalOcean Gradient, open weights | A different vendor on different infrastructure, so one provider's outage degrades the panel instead of ending it |
 | 4 | `llama3.3-70b` | Snowflake Cortex, warehouse-native | An agency whose records already live in Snowflake can adjudicate without the data crossing its own warehouse boundary |
 
-Two voters can only agree or deadlock. Four produce a majority with a visible minority. Seats are built from whichever credentials are present and the count is reported, so a two-seat run is visibly a two-seat run.
+Two voters can only agree or deadlock. Four produce a majority with a visible minority. Seats are built from whichever credentials are present and the count is reported, so a two-seat run is visibly a two-seat run, and a seat that fails to answer is recorded as an error and never counted as agreement. We saw exactly that in production when DigitalOcean returned 402 on exhausted trial credits.
 
 **The models never produce a number.** They do not count, do not set severity, and do not decide that a divergence exists.
 
-## Explicit non-goals
-
-Carried from the product spec, and enforced in the code:
-
-- **No predictive risk scoring.** Prediction from a broken record is the problem, not the fix.
-- **No case management.** We never compete with the systems that feed us. Neutrality is the point.
-- **No automated decision affecting a child's placement or a parent's rights.** Throughline surfaces discrepancies. Humans decide. Always.
-
-## Verify anything here
-
-Every source is public and unauthenticated. Pick any claim and check it yourself:
-
-```bash
-# Live summary. Every figure computed, none stored as a constant
-curl https://throughline-api-yo1p.onrender.com/api/summary
-
-# The ranked worklist
-curl 'https://throughline-api-yo1p.onrender.com/api/divergences?limit=5'
-
-# The raw source record behind any single claim, with URL, fetch time and sha256
-curl https://throughline-api-yo1p.onrender.com/api/provenance/<claim_id>
-
-# Source health and the coverage gate's own arithmetic
-curl https://throughline-api-yo1p.onrender.com/api/sources
-
-# What we nearly merged but declined to: the entity-resolution review band
-curl https://throughline-api-yo1p.onrender.com/api/matches
-```
-
-## Run it locally
-
-```bash
-git clone https://github.com/StephenSook/throughline
-cd throughline
-uv sync --extra dev
-uv run pytest -q                      # 41 tests
-uv run uvicorn throughline.api.main:app --reload
-open http://localhost:8000
-```
-
-No API key is required to run the engine. `GEMINI_API_KEY` (from [AI Studio](https://aistudio.google.com/apikey)) enables the adjudication panel; without it the panel reports that it is disabled and every deterministic verdict is unaffected. See [`.env.example`](.env.example).
-
-## Stack
+## Tech stack
 
 | | |
 |---|---|
-| Backend | Python 3.12, FastAPI, httpx, asyncio |
+| Backend | Python 3.11, FastAPI, httpx, asyncio, asyncpg |
 | Entity resolution | rapidfuzz, custom USPS-style normalizer |
-| Models | Gemini 3.6 Flash, Gemma 4 31B (Google AI Studio), GPT-OSS-120B (DigitalOcean Gradient), Llama 3.3 70B (Snowflake Cortex) |
-| History | TimescaleDB on Tiger Cloud, hypertables, continuous aggregate, compression |
+| Models | Gemini 3.6 Flash, Gemma 4 31B (Google AI Studio), GPT-OSS-120B (DigitalOcean Gradient), Llama 3.3 70B (Snowflake Cortex, SQL API v2, keypair JWT) |
+| History | TimescaleDB 2.29.1 on Tiger Cloud, hypertables, continuous aggregate, compression |
 | Orchestration | Render Workflows, fan-out probes with per-task retry, then reconcile |
-| Deploy | Render |
-| Dashboard | React + TypeScript + Tailwind + TanStack Query (Render Static Site), plus a zero-dependency Jinja2 dashboard served by the API itself |
-| CI | GitHub Actions, ruff, ruff format, pytest, anti-fabrication guard |
+| Deploy | Render web service and static site |
+| Dashboard | React 18, TypeScript, Tailwind, TanStack Query, plus a zero-dependency Jinja2 dashboard served by the API itself |
+| CI | GitHub Actions: ruff, ruff format, 69 tests, an anti-fabrication guard, and a prose guard |
 
 ## Data sources
 
@@ -207,15 +203,65 @@ No API key is required to run the engine. `GEMINI_API_KEY` (from [AI Studio](htt
 | Business Licenses 2026 | City of Atlanta, Dept. of Revenue | 506 | [ArcGIS FeatureServer](https://services5.arcgis.com/5RxyIIJ9boPdptdo/ArcGIS/rest/services/Business_Licenses_2026/FeatureServer/50/query?where=1%3D1&outFields=*&f=json) |
 | Public Schools | City of Atlanta / APS | 132 | [ArcGIS FeatureServer](https://services5.arcgis.com/5RxyIIJ9boPdptdo/ArcGIS/rest/services/Atlanta_Public_Schools/FeatureServer/0/query?where=1%3D1&outFields=*&f=json) |
 | School directory | U.S. Dept. of Education (NCES CCD), via Urban Institute | 88 | [Education Data API](https://educationdata.urban.org/api/v1/schools/ccd/directory/2022/?leaid=1300120) |
-| Geocoder | U.S. Census Bureau | 1384 addresses geocoded | [Public_AR_Current](https://geocoding.geo.census.gov/geocoder/locations/addressbatch) |
+| Geocoder | U.S. Census Bureau | 1,384 addresses geocoded | [Public_AR_Current](https://geocoding.geo.census.gov/geocoder/locations/addressbatch) |
+
+## Repo layout
+
+```
+src/throughline/
+  connectors/     five public authorities, content validation, not status codes
+  core/           resolve, normalize, diverge, store, adjudicate, pipeline, models
+  api/            FastAPI app, provenance endpoints, Jinja2 fallback dashboard
+web/src/          React dashboard, components and typed API client
+tests/            69 tests, including the anti-fabrication guard
+scripts/          prose guard, run with --check in CI
+workflow.py       Render Workflow: check_source, reconcile, monitor
+schema.sql        hypertables, continuous aggregate, compression policy
+docs/FACTS.json   the one fact ledger every artifact reads from
+```
+
+## Quickstart
+
+```bash
+git clone https://github.com/StephenSook/throughline
+cd throughline
+uv sync --extra dev
+uv run pytest -q                      # 69 tests
+uv run uvicorn throughline.api.main:app --reload
+open http://localhost:8000
+```
+
+No API key is required to run the engine. Every source is public and unauthenticated. `GEMINI_API_KEY` (from [AI Studio](https://aistudio.google.com/apikey)) enables the adjudication panel, and without it the panel reports that it is disabled while every deterministic verdict is unaffected. See [`.env.example`](.env.example).
+
+## Verification
+
+The claim worth checking hardest is the one most often asserted and least often enforced: that the numbers are computed rather than written down. Check it in one command, with no network and no credentials:
+
+```bash
+uv run pytest tests/test_no_fabricated_numbers.py -v
+```
+
+That suite asserts the engine modules cannot import the model layer, that no divergence count is a literal in source, and it includes a non-vacuity check, so a bug that made the guard scan nothing would fail rather than pass quietly. CI runs it on a bare exit path with no pipe, because a pipeline reports its last command's status and a failing suite can otherwise merge green. CI additionally asserts the guard actually collected tests and skipped none, because a conditionally skipped guard is a false green.
+
+## Honesty and limitations
+
+- Throughline reports that two authorities disagree. It does not determine which one is right, and it never claims a facility is closed, unlicensed, or unsafe.
+- The 51.9% divergence rate is a rate for this population of Atlanta records under these eight rules. It is not a general claim about public data.
+- The largest rule we wrote is switched off in production by our own coverage gate. The rate would be far higher if we counted absence, and counting it would have been wrong.
+- Entity resolution is probabilistic. Matches between 72 and 88 are recorded and refused rather than guessed, and unmatched records are kept rather than dropped, because dropping them would flatter the rate.
+- No child-welfare data is used, touched, or simulated anywhere in this project. The child-welfare framing is the motivation, and the Atlanta public records are the evidence.
+
+Enforced in the code, not just stated here:
+
+- **No predictive risk scoring.** Prediction from a broken record is the problem, not the fix.
+- **No case management.** We never compete with the systems that feed us. Neutrality is the point.
+- **No automated decision affecting a child's placement or a parent's rights.** Throughline surfaces discrepancies. Humans decide. Always.
 
 ## Team
 
-**Stephen Sookra**: backend, connectors, entity resolution, divergence engine, coverage gate, adjudication panel, TimescaleDB, Render Workflow, API, deploy, CI.
-**Khadim Drame**: React dashboard: grouped worklist, divergence detail, provenance card, adjudication votes, coverage panel.
-
-Live build status and ownership: [`PLAN.md`](./PLAN.md).
+**Stephen Sookra**: connectors, entity resolution, divergence engine, coverage gate, adjudication panel, TimescaleDB, Render Workflow, API, deploy, CI.
+**Khadim Drame**: React dashboard: grouped worklist, divergence detail, provenance card, adjudication votes, coverage panel, history band.
 
 ## License
 
-MIT: see [`LICENSE`](./LICENSE).
+MIT. See [LICENSE](./LICENSE).
