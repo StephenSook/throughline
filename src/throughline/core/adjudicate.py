@@ -37,8 +37,11 @@ from .models import Divergence
 
 API_ROOT = "https://generativelanguage.googleapis.com/v1beta/models"
 
+# Both verified present on this key via the models.list endpoint on 2026-08-12.
+# Pinned rather than using a `-latest` alias so a silent upstream model swap
+# cannot change the panel's behaviour between the demo and the judging.
 GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.6-flash")
-GEMMA_MODEL = os.environ.get("GEMMA_MODEL", "gemma-3-27b-it")
+GEMMA_MODEL = os.environ.get("GEMMA_MODEL", "gemma-4-31b-it")
 
 # Only the ambiguous tail is worth a model's opinion. A record whose own
 # publisher stamped it 2021 is not ambiguous, and spending a panel call on it
@@ -108,21 +111,51 @@ def _parse_vote(text: str) -> dict | None:
     }
 
 
-async def _ask(client: httpx.AsyncClient, model: str, prompt: str, api_key: str) -> dict | None:
-    """One model, one vote. Returns None if the model could not be reached.
+def _extract_text(payload: dict) -> str:
+    """Pull text out of a generateContent response.
 
-    A model that did not answer must never be silently counted as agreement.
+    Reasoning models return several parts, some of which are thought summaries
+    carrying no `text`. Taking parts[0] blindly loses the answer, so join every
+    part that actually has text.
     """
     try:
-        response = await client.post(
+        parts = payload["candidates"][0]["content"]["parts"]
+    except (KeyError, IndexError, TypeError):
+        return ""
+    return "\n".join(p["text"] for p in parts if isinstance(p, dict) and "text" in p)
+
+
+async def _ask(client: httpx.AsyncClient, model: str, prompt: str, api_key: str) -> dict:
+    """One model, one vote.
+
+    Returns an `error` dict rather than a vote when the model could not be
+    reached or did not answer usably. A model that did not answer must never be
+    silently counted as agreement — that would let an outage manufacture
+    consensus.
+    """
+    # Enough headroom that a reasoning model's thinking budget cannot starve the
+    # answer. A truncated response is indistinguishable from a refusal, and at
+    # 300 tokens both models were being cut off mid-verdict.
+    config = {"temperature": 0.0, "maxOutputTokens": 1024}
+
+    async def call(with_json_mime: bool):
+        generation = dict(config)
+        if with_json_mime:
+            generation["responseMimeType"] = "application/json"
+        return await client.post(
             f"{API_ROOT}/{model}:generateContent",
             params={"key": api_key},
-            json={
-                "contents": [{"parts": [{"text": prompt}]}],
-                "generationConfig": {"temperature": 0.0, "maxOutputTokens": 300},
-            },
-            timeout=30.0,
+            json={"contents": [{"parts": [{"text": prompt}]}], "generationConfig": generation},
+            timeout=45.0,
         )
+
+    try:
+        # Ask for structured output first. Open-weights models on this endpoint
+        # do not all accept responseMimeType, so a 400 falls back to plain text
+        # and the parser strips whatever fence the model wrapped it in.
+        response = await call(with_json_mime=True)
+        if response.status_code == 400:
+            response = await call(with_json_mime=False)
     except (httpx.TimeoutException, httpx.TransportError) as exc:
         return {"error": f"unreachable: {type(exc).__name__}"}
 
@@ -130,12 +163,17 @@ async def _ask(client: httpx.AsyncClient, model: str, prompt: str, api_key: str)
         return {"error": f"HTTP {response.status_code}: {response.text[:180]}"}
 
     try:
-        text = response.json()["candidates"][0]["content"]["parts"][0]["text"]
-    except (KeyError, IndexError, ValueError):
-        return {"error": "unexpected response shape"}
+        payload = response.json()
+    except ValueError:
+        return {"error": "response body was not JSON"}
+
+    text = _extract_text(payload)
+    if not text:
+        finish = (payload.get("candidates") or [{}])[0].get("finishReason", "unknown")
+        return {"error": f"no text in response (finishReason={finish})"}
 
     vote = _parse_vote(text)
-    return vote if vote else {"error": "model did not return parseable JSON"}
+    return vote if vote else {"error": f"unparseable verdict: {text[:120]!r}"}
 
 
 async def adjudicate(divergences: list[Divergence], *, limit: int = 12) -> dict:

@@ -14,6 +14,7 @@ from __future__ import annotations
 import asyncio
 from datetime import UTC, datetime
 
+from .adjudicate import adjudicate
 from .models import Claim, Divergence
 from .pipeline import RunResult, run_reconciliation
 
@@ -48,14 +49,32 @@ class RunStore:
     def divergence(self, divergence_id: str) -> Divergence | None:
         return self._divergences.get(divergence_id)
 
-    async def execute(self, *, geocode: bool = True) -> RunResult:
-        """Run reconciliation, promoting to golden only on a fully healthy run."""
+    async def execute(self, *, geocode: bool = True, adjudicate_tail: bool = True) -> RunResult:
+        """Run reconciliation, promoting to golden only on a fully healthy run.
+
+        Adjudication is applied *here*, not inside the pipeline. `core.pipeline`
+        and `core.diverge` must never import the model layer: the deterministic
+        verdict has to stand with every model deleted, and a test enforces that
+        boundary. This layer composes the two.
+        """
         async with self._lock:
             try:
                 run = await run_reconciliation(geocode=geocode)
             except Exception as exc:  # noqa: BLE001 - surfaced, never swallowed
                 self.last_error = f"{type(exc).__name__}: {exc}"
                 raise
+
+            if adjudicate_tail:
+                # Never allowed to fail the run. The panel is commentary on an
+                # already-final verdict, so a model outage must not cost us a
+                # reconciliation.
+                try:
+                    run.summary["adjudication"] = await adjudicate(run.divergences)
+                except Exception as exc:  # noqa: BLE001
+                    run.summary["adjudication"] = {
+                        "enabled": False,
+                        "reason": f"panel failed: {type(exc).__name__}: {exc}",
+                    }
 
             self.last_error = None
             self.current = run
