@@ -113,36 +113,37 @@ Not a prediction, not a judgement about which authority is right, just the fact 
 flowchart TB
   subgraph SRC["Five public authorities, no authentication on any"]
     direction LR
-    CC["Atlanta Child Care Facilities<br/>681 rows, the city's copy of the GA DECAL registry"]
-    BL["Atlanta Business Licenses 2026<br/>506 rows"]
-    AS["Atlanta Public Schools<br/>132 rows, carries GADOE_ID"]
-    FS["NCES Common Core of Data<br/>88 rows, carries ncessch"]
-    GC["US Census Geocoder<br/>the federal address authority"]
+    CC["Atlanta Child Care Facilities, 681 rows"]
+    BL["Atlanta Business Licenses 2026, 506 rows"]
+    AS["Atlanta Public Schools, 132 rows"]
+    FS["NCES federal directory, 88 rows"]
+    GC["US Census Geocoder"]
   end
 
-  SRC -->|"validate payload shape, never the status line"| CONN["connectors/<br/>a WAF challenge arrives as HTTP 200"]
-  CONN --> STORE[("Claim store<br/>append-only, length-prefixed id, sha256 of the raw record")]
-  STORE --> RES["Entity resolution<br/>no shared key: blocking, rapidfuzz, address normalization"]
-  RES -.->|"score 72 to 88, declines to merge"| BAND["Review band<br/>kept and exposed, never dropped"]
-  RES --> DIV["Divergence engine<br/>eight deterministic rules, no model runs here"]
-  DIV --> GATE{"Coverage gate<br/>can this authority support the inference at all?"}
-  GATE -->|"0.3% of 25% required, the rule suppresses itself"| SUPP["Suppressed, and says why"]
-  GATE -->|"sufficient"| OUT["Typed divergence<br/>severity, provenance, both sources attached"]
-  OUT --> TS[("TimescaleDB on Tiger Cloud<br/>hypertables, continuous aggregate, compression")]
+  WF["Render Workflow: check_source, reconcile, monitor"] ==>|"one independently retrying probe per authority"| CONN
+  SRC ==>|"validate payload shape, never the status line"| CONN["Connectors"]
+  CONN --> STORE[("Claim store, append-only, sha256 per claim")]
+  STORE --> RES["Entity resolution, no shared identifier"]
+  RES -.->|"scores 72 to 88, declines to merge"| BAND["Review band, kept and exposed"]
+  RES --> DIV["Divergence engine, eight deterministic rules"]
+  DIV --> GATE{"Coverage gate: can this authority support the inference?"}
+  GATE -->|"0.3% against 25% required, the rule suppresses itself"| SUPP["Suppressed, and says why"]
+  GATE -->|"sufficient"| OUT["Typed divergence, provenance and both sources attached"]
+  OUT -.->|"ambiguous tail only. Genuine conflict, or formatting artefact?"| PANEL
+  PANEL -.->|"a verdict and a rationale. Never a count, never a severity"| OUT
+  OUT --> TS[("TimescaleDB on Tiger Cloud, hypertables and continuous aggregate")]
 
-  subgraph PANEL["Adjudication panel: four seats, four clouds, ambiguous tail only"]
+  subgraph PANEL["Adjudication panel: four seats on four clouds"]
     direction LR
-    P1["gemini-3.6-flash<br/>Google AI Studio"]
-    P2["gemma-4-31b-it<br/>open weights, on-premises path"]
-    P3["openai-gpt-oss-120b<br/>DigitalOcean Gradient"]
-    P4["llama3.3-70b<br/>Snowflake Cortex, warehouse-native"]
+    P1["gemini-3.6-flash, Google AI Studio"]
+    P2["gemma-4-31b-it, open weights"]
+    P3["openai-gpt-oss-120b, DigitalOcean Gradient"]
+    P4["llama3.3-70b, Snowflake Cortex"]
   end
 
-  OUT <-.->|"genuine or formatting artefact. Never a count, never a severity"| PANEL
-  TS --> API["FastAPI<br/>ranked worklist, provenance, sources, storage, panel"]
-  API --> WEB["React dashboard<br/>Render Static Site"]
-  API --> JIN["Jinja2 dashboard<br/>zero dependency, served by the API itself"]
-  WF["Render Workflow<br/>check_source fans out one retrying probe per authority"] -->|"then reconcile, then monitor, on a schedule"| CONN
+  TS --> API["FastAPI: worklist, provenance, sources, storage, panel"]
+  API --> WEB["React dashboard, Render Static Site"]
+  API --> JIN["Jinja2 dashboard, served by the API itself"]
 ```
 
 What the picture cannot show is the boundary that matters most. The dotted edge into the panel is the only place a model touches this system, and it is the only edge you can delete without changing a single number on any screen. Everything upstream of it is deterministic Python, so every verdict is reproducible by hand from public URLs. The engine modules are forbidden from importing the model layer, and [a test enforces that](tests/test_no_fabricated_numbers.py) rather than a convention.
