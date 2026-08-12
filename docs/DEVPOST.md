@@ -147,31 +147,34 @@ Enforced in the code, not just stated:
 
 ---
 
-## Prize categories to check
+## Prize categories to check — ALL EIGHT
 
-Each is load-bearing and greppable in the shipped code.
+Each is load-bearing, greppable in the shipped code, and verifiable by a judge on the deployed URL.
 
 - [x] **Best Hack for Good**
 - [x] **Best Use of Atlanta Open Data** — three City of Atlanta datasets are the engine's input, not decoration
-- [x] **Best Use of Render Workflows** — `workflow.py`, deployed as service `throughline-workflow`, three registered tasks, verified green run returning 813 divergences across three concurrently-probed authorities
-- [x] **Best Use of Tiger Data** (both listings) — TimescaleDB 2.29.1 on Tiger Cloud: two hypertables, the `divergence_rate_hourly` continuous aggregate backing the chart, and a compression policy on closed chunks
-- [x] **Best Use of Gemini API** — panel seat 1
+- [x] **Best Use of Render Workflows** — `workflow.py`, service `throughline-workflow`, three registered tasks, green run returning 813 divergences across three concurrently-probed authorities
+- [x] **Best Use of Tiger Data** (both listings) — TimescaleDB 2.29.1 on Tiger Cloud: two hypertables, the `divergence_rate_hourly` continuous aggregate, a compression policy on closed chunks. Proof: `/api/storage`
+- [x] **Best Use of Gemini API** — panel seat 1, `gemini-3.6-flash`
 - [x] **Best Use of Gemma 4** — panel seat 2, `gemma-4-31b-it`
 - [x] **Best Use of DigitalOcean** — panel seat 3, `openai-gpt-oss-120b` on Gradient serverless inference
+- [x] **Best Use of Snowflake API** — panel seat 4, `llama3.3-70b` via Cortex over the SQL API v2, keypair JWT auth
 
-**Snowflake:** check only if the Cortex seat landed. If it did not, leave it unchecked — we do not claim what we did not wire.
+Verified live on the deployed API: all four seats returned verdicts on the Thomasville finding. Proof a judge can click: `/api/panel`.
 
 ## Required form fields
 
 **"Which of the following AI tools did you use?"** → `Gemini`
 
+*(The dropdown is single-select. Gemini is the right answer — it is panel seat 1 and the field that gates the Gemini prize. Gemma, DigitalOcean Gradient and Snowflake Cortex are all named in the textarea below.)*
+
 **"Did you implement a generative AI model or API in your hack?"**
 
-> Yes — as a three-seat adjudication panel on three different clouds. Gemini 3.6 Flash (Google AI Studio), Gemma 4 31B (Google AI Studio, open weights) and GPT-OSS-120B (DigitalOcean Gradient, open weights) each vote independently on whether an already-detected discrepancy is a genuine conflict between authorities or an artefact of formatting and abbreviation. Every vote is stored and displayed with its rationale including dissent, and a model that fails to answer is recorded as an error rather than counted as agreement.
+> Yes — as a four-seat adjudication panel on four different clouds. Gemini 3.6 Flash (Google AI Studio), Gemma 4 31B (Google AI Studio, open weights), GPT-OSS-120B (DigitalOcean Gradient, open weights) and Llama 3.3 70B (Snowflake Cortex, reached over the SQL API with keypair JWT auth) each vote independently on whether an already-detected discrepancy is a genuine conflict between authorities or an artefact of formatting and abbreviation. Every vote is stored and displayed with its rationale including dissent, and a model that fails to answer is recorded as an error rather than counted as agreement.
 >
-> Three seats rather than two is deliberate: two voters can only agree or deadlock, three produce a majority, and three vendors on three infrastructures mean a single provider outage degrades the panel instead of ending it.
+> Four seats rather than one is deliberate: two voters can only agree or deadlock, more produce a majority with a visible minority, and four vendors on four infrastructures mean a single provider outage degrades the panel instead of ending it. We saw exactly that in production — DigitalOcean returned 402 when trial credits ran out, and the panel reported it as an error rather than counting it as agreement.
 >
-> Deliberately, the models are used only on the ambiguous tail and never produce a number. They do not count, do not set severity, and do not decide that a divergence exists — all eight divergence rules are deterministic Python. Delete all three models and the system still ingests five public sources, resolves entities across them with no shared identifier, computes divergences, persists the time series, and reports a rate. A test in our CI enforces that boundary by forbidding the engine modules from importing the model layer.
+> Deliberately, the models are used only on the ambiguous tail and never produce a number. They do not count, do not set severity, and do not decide that a divergence exists — all eight divergence rules are deterministic Python. Delete all four models and the system still ingests five public sources, resolves entities across them with no shared identifier, computes divergences, persists the time series, and reports a rate. A test in our CI enforces that boundary by forbidding the engine modules from importing the model layer.
 
 **"Gemini Project Number"** → `150614014893`
 
