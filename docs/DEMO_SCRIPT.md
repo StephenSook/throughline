@@ -34,7 +34,7 @@ Built on the Sookra Pitch Arc + PAS (Problem · **Agitate** · Solution). The Ag
 
 ### 0:40 — 0:55 · SOLUTION + DEMO BRIDGE. Click **Run reconciliation**.
 
-> "Let me show you this running live right now, against four public sources — three City of Atlanta datasets and the U.S. Census Bureau."
+> "Let me show you this running live right now, against five public sources — three City of Atlanta datasets, the federal school directory, and the U.S. Census Bureau."
 
 *(Numbers land. **Do not talk over them.** This is the pause button.)*
 
@@ -80,7 +80,7 @@ Built on the Sookra Pitch Arc + PAS (Problem · **Agitate** · Solution). The Ag
 
 ## Anti-patterns this script deliberately avoids
 
-Per the guide, never in the first 30 seconds: company introduction (constrained by MLH, so kept to 5s and flat) · agenda slide · **apology or hedge** — never say "we only had 24 hours" · technical jargon opening · generic market statistics. Lead with the person and the number, never the stack. The stack lands at 1:38, after the proof.
+Per the guide, never in the first 30 seconds: company introduction (constrained by MLH, so kept to 5s and flat) · agenda slide · **apology or hedge** — never say "we only had 24 hours" · technical jargon opening · generic market statistics. Lead with the person and the number, never the stack. The stack lands at 1:48, after the proof.
 
 ## Measure the shipped file before calling it final
 
