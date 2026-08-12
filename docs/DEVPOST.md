@@ -6,7 +6,7 @@ Paste-ready. **Every number here is read from [`FACTS.json`](./FACTS.json), writ
 
 ## Project name
 
-**Throughline**
+**Throughline** — live draft at https://devpost.com/software/throughline-sujkg1
 
 ## Elevator pitch (200 char max)
 
@@ -80,16 +80,16 @@ FIVE REAL PUBLIC SOURCES (no auth on any)
    -> ENTITY RESOLUTION    no shared key: blocking + rapidfuzz + address normalization
    -> DIVERGENCE ENGINE    8 deterministic rules
    -> COVERAGE GATE        can this authority support the inference at all?
-   -> ADJUDICATION PANEL   3 voters on 3 clouds, ambiguous tail only
+   -> ADJUDICATION PANEL   4 voters on 4 clouds, ambiguous tail only
    -> TIMESCALEDB          hypertables + continuous aggregate + compression
    -> FastAPI + ranked worklist + provenance API
 
   RENDER WORKFLOW  fans out one retrying probe per authority, then reconciles
 ```
 
-Python 3.12, FastAPI, httpx, rapidfuzz. Dashboard is Jinja2 and hand-written CSS, light and dark, no framework. CI on GitHub Actions: ruff, ruff format, 53 tests, and an anti-fabrication guard.
+Python 3.12, FastAPI, httpx, rapidfuzz. React + TypeScript + Tailwind dashboard on a Render Static Site, plus a zero-dependency Jinja2 dashboard the API serves itself. CI on GitHub Actions: ruff, ruff format, 69 tests, and an anti-fabrication guard.
 
-**This is not a wrapper around a model API.** Delete all three models and Throughline still ingests five sources, resolves entities with no shared identifier, computes seven kinds of divergence, gates them on measured coverage, persists the series, and reports a rate. A test enforces that boundary: the engine modules are forbidden from importing the model layer.
+**This is not a wrapper around a model API.** Delete all four models and Throughline still ingests five sources, resolves entities with no shared identifier, computes seven kinds of divergence, gates them on measured coverage, persists the series, and reports a rate. A test enforces that boundary: the engine modules are forbidden from importing the model layer.
 
 The models do one narrow job — judging whether an *already-detected* discrepancy is a genuine conflict or a formatting artefact. They never count, never set severity, never decide a divergence exists.
 
@@ -109,7 +109,7 @@ The models do one narrow job — judging whether an *already-detected* discrepan
 
 - We found something real, in public data, about children, in the host city — sitting unmeasured for four years.
 - Our tool suppressed its own headline number rather than overstate it.
-- 53 tests. Green CI. A guard that fails rather than skips, sees untracked files, and includes non-vacuity checks so a bug that made it scan nothing would fail rather than go green.
+- 69 tests. Green CI. A guard that fails rather than skips, sees untracked files, and includes non-vacuity checks so a bug that made it scan nothing would fail rather than go green.
 - Every claim on every screen is independently verifiable by a stranger, against public URLs, with no API key.
 
 ### What we learned
