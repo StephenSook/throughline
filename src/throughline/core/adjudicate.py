@@ -6,13 +6,13 @@ artefact of formatting, abbreviation, or a legitimate difference in what the two
 registries are recording.
 
 They never count anything, never score severity, and never decide that a
-divergence exists. Delete this entire module and Throughline still ingests four
-public sources, resolves entities across them, detects six kinds of divergence,
-and reports a rate — because the verdict is deterministic and lives in
-`core.diverge`. That is the difference between a system and a wrapper around
-somebody else's API, and it is deliberate.
+divergence exists. Delete this entire module and Throughline still ingests five
+public sources, resolves entities across them, detects seven kinds of
+divergence, persists the series, and reports a rate — because the verdict is
+deterministic and lives in `core.diverge`. That is the difference between a
+system and a wrapper around somebody else's API, and it is deliberate.
 
-**Three independent voters, on three different clouds.** One model agreeing with
+**Four independent voters, on four different clouds.** One model agreeing with
 itself is not a panel, and two voters cannot break a tie:
 
   * **Gemini 3.6 Flash** — hosted frontier model, Google. Strong general
@@ -26,8 +26,12 @@ itself is not a panel, and two voters cannot break a tie:
     A different vendor on different infrastructure, so a single provider outage
     degrades the panel rather than ending it, and no one company's model can
     quietly decide every ambiguous case.
+  * **Llama 3.3 70B** — on Snowflake Cortex, reached through the SQL API. The
+    warehouse-native vantage point: an agency whose records already live in
+    Snowflake can adjudicate without the data crossing its own warehouse
+    boundary at all.
 
-Two voters can only agree or deadlock. Three can produce a majority, and the
+Two voters can only agree or deadlock. More can produce a majority, and the
 minority opinion stays visible: every vote is stored with its rationale and
 displayed next to the deterministic verdict, dissent included. A panel that
 hides disagreement is just an average wearing a panel's clothes.
@@ -38,6 +42,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+from datetime import UTC, datetime
 
 import httpx
 
@@ -55,6 +60,11 @@ DO_MODEL = os.environ.get("DO_MODEL", "openai-gpt-oss-120b")
 # DigitalOcean Gradient serverless inference. OpenAI-compatible, so the third
 # voter needs a different request shape from the two Google-hosted ones.
 DO_ROOT = "https://inference.do-ai.run/v1/chat/completions"
+
+# Snowflake Cortex. Verified available on this account 2026-08-12 via
+# SNOWFLAKE.CORTEX.COMPLETE; several advertised model names are not enabled in
+# every region, so this one was picked by probing rather than from docs.
+SNOWFLAKE_MODEL = os.environ.get("SNOWFLAKE_MODEL", "llama3.3-70b")
 
 # Only the ambiguous tail is worth a model's opinion. A record whose own
 # publisher stamped it 2021 is not ambiguous, and spending a panel call on it
@@ -218,6 +228,112 @@ async def _ask_digitalocean(client: httpx.AsyncClient, prompt: str, token: str) 
     return vote if vote else {"error": f"unparseable verdict: {text[:120]!r}"}
 
 
+def _snowflake_jwt(account: str, user: str, private_key_pem: str) -> str | None:
+    """Mint a short-lived JWT for Snowflake keypair auth.
+
+    Snowflake's REST APIs authenticate with a JWT whose issuer embeds the
+    SHA-256 fingerprint of the registered public key, which is what proves we
+    hold the matching private half. Nothing here is a shared secret in transit:
+    the private key never leaves this process and the token expires in minutes.
+    """
+    try:
+        import base64
+        import hashlib
+        from datetime import timedelta
+
+        import jwt
+        from cryptography.hazmat.primitives import serialization
+
+        key = serialization.load_pem_private_key(private_key_pem.encode(), password=None)
+        der = key.public_key().public_bytes(
+            serialization.Encoding.DER,
+            serialization.PublicFormat.SubjectPublicKeyInfo,
+        )
+        fingerprint = "SHA256:" + base64.b64encode(hashlib.sha256(der).digest()).decode()
+
+        qualified = f"{account.upper()}.{user.upper()}"
+        now = datetime.now(UTC)
+        return jwt.encode(
+            {
+                "iss": f"{qualified}.{fingerprint}",
+                "sub": qualified,
+                "iat": now,
+                "exp": now + timedelta(minutes=15),
+            },
+            key,
+            algorithm="RS256",
+        )
+    except Exception:  # noqa: BLE001 - a seat that cannot mint a token simply does not sit
+        return None
+
+
+async def _ask_snowflake(client: httpx.AsyncClient, prompt: str) -> dict:
+    """The fourth voter, on Snowflake Cortex.
+
+    A warehouse-native model, which is a genuinely different vantage point: an
+    agency whose records already live in Snowflake can adjudicate without the
+    data leaving its own warehouse boundary at all.
+    """
+    account = os.environ.get("SNOWFLAKE_ACCOUNT", "").strip()
+    user = os.environ.get("SNOWFLAKE_USER", "").strip()
+    # A PEM survives a lot of transport mangling on its way into a platform's
+    # environment UI. Accept the three shapes it actually arrives in: real
+    # newlines, escaped \n, and either wrapped in quotes by a .env paste.
+    pem = os.environ.get("SNOWFLAKE_PRIVATE_KEY", "").strip()
+    if len(pem) >= 2 and pem[0] == pem[-1] and pem[0] in "\"'":
+        pem = pem[1:-1]
+    pem = pem.replace("\\n", "\n").strip()
+
+    token = _snowflake_jwt(account, user, pem)
+    if token is None:
+        return {"error": "could not mint Snowflake JWT from the configured key"}
+
+    # Reached through the SQL API rather than the Cortex inference endpoint.
+    # `/api/v2/cortex/inference:complete` returns 403 "account is not allowed to
+    # access this endpoint" on trial accounts, while `SNOWFLAKE.CORTEX.COMPLETE`
+    # over `/api/v2/statements` works on the same credentials — so the model is
+    # reached the way a warehouse user would actually reach it, in SQL.
+    statement = f"SELECT SNOWFLAKE.CORTEX.COMPLETE('{SNOWFLAKE_MODEL}', ?) AS verdict"
+    try:
+        response = await client.post(
+            f"https://{account}.snowflakecomputing.com/api/v2/statements",
+            headers={
+                "Authorization": f"Bearer {token}",
+                "X-Snowflake-Authorization-Token-Type": "KEYPAIR_JWT",
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+            },
+            json={
+                "statement": statement,
+                "timeout": 60,
+                "warehouse": os.environ.get("SNOWFLAKE_WAREHOUSE", "COMPUTE_WH"),
+                "role": os.environ.get("SNOWFLAKE_ROLE", "ACCOUNTADMIN"),
+                # Bound rather than interpolated: the prompt carries values from
+                # third-party records, and concatenating those into SQL would be
+                # an injection waiting for a record with a quote in it.
+                "bindings": {"1": {"type": "TEXT", "value": prompt}},
+            },
+            timeout=90.0,
+        )
+    except (httpx.TimeoutException, httpx.TransportError) as exc:
+        return {"error": f"unreachable: {type(exc).__name__}"}
+
+    if response.status_code not in (200, 202):
+        return {"error": f"HTTP {response.status_code}: {response.text[:180]}"}
+
+    try:
+        rows = response.json().get("data") or []
+        text = rows[0][0] if rows and rows[0] else ""
+    except (ValueError, IndexError, TypeError):
+        return {"error": "unexpected SQL API response shape"}
+
+    if not text:
+        return {"error": "no content in Cortex response"}
+
+    vote = _parse_vote(text)
+    return vote if vote else {"error": f"unparseable verdict: {text[:120]!r}"}
+
+
 async def adjudicate(divergences: list[Divergence], *, limit: int = 6) -> dict:
     """Run the panel over the ambiguous tail. Mutates `adjudication` in place.
 
@@ -234,6 +350,12 @@ async def adjudicate(divergences: list[Divergence], *, limit: int = 6) -> dict:
         seats += [GEMINI_MODEL, GEMMA_MODEL]
     if do_token:
         seats.append(DO_MODEL)
+    snowflake_ready = all(
+        os.environ.get(k, "").strip()
+        for k in ("SNOWFLAKE_ACCOUNT", "SNOWFLAKE_USER", "SNOWFLAKE_PRIVATE_KEY")
+    )
+    if snowflake_ready:
+        seats.append(SNOWFLAKE_MODEL)
 
     if not seats:
         return {
@@ -271,6 +393,8 @@ async def adjudicate(divergences: list[Divergence], *, limit: int = 6) -> dict:
                 calls.append(_ask(client, GEMMA_MODEL, prompt, api_key))
             if do_token:
                 calls.append(_ask_digitalocean(client, prompt, do_token))
+            if snowflake_ready:
+                calls.append(_ask_snowflake(client, prompt))
 
             results = await asyncio.gather(*calls)
             votes = dict(zip(seats, results, strict=True))
@@ -304,6 +428,7 @@ async def adjudicate(divergences: list[Divergence], *, limit: int = 6) -> dict:
             GEMINI_MODEL: "Google AI Studio",
             GEMMA_MODEL: "Google AI Studio (open weights)",
             DO_MODEL: "DigitalOcean Gradient (open weights)",
+            SNOWFLAKE_MODEL: "Snowflake Cortex (warehouse-native)",
         },
         "seats": len(seats),
         "ambiguous_total": len(candidates),
