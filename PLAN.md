@@ -139,13 +139,11 @@ edit the Python.
 
 ### Phase 3 — Frontend
 
-| # | Component | File(s) | Owner | Status | Notes |
-|---|---|---|---|---|---|
-| 3.1 | Vite + React + TS scaffold | `web/` | **Khadim** | ⬜ | |
-| 3.2 | Summary tiles | `web/src/` | **Khadim** | ⬜ | |
-| 3.3 | Divergence worklist | `web/src/` | **Khadim** | ⬜ | |
-| 3.4 | Divergence detail + provenance panel | `web/src/` | **Khadim** | ⬜ | The money screen. |
-| 3.5 | Divergence rate chart | `web/src/` | **Khadim** | ⬜ | |
+| 3.1 | Vite + React + TS scaffold | `web/` | **Khadim** | 🟡 18:05 | Scaffolding now — Vite + React + TS + Tailwind + TanStack Query. Answering Q1: doing it myself, don't scaffold web/. |
+| 3.2 | Summary tiles | `web/src/` | **Khadim** | 🟡 18:05 | Incl. coverage-gate panel + degraded banner |
+| 3.3 | Divergence worklist | `web/src/` | **Khadim** | 🟡 18:05 | Grouped by kind — 658 of 813 are STALE_RECORD; flat list is unreadable. Client-side pagination, API caps limit at 500. |
+| 3.4 | Divergence detail + provenance panel | `web/src/` | **Khadim** | 🟡 18:05 | Incl. GET /api/provenance/{claim_id} raw-record disclosure |
+| 3.5 | Divergence rate chart | `web/src/` | **Khadim** | ✂️ 18:05 | Cut — your server dashboard already ships divergence-by-kind + history. Per your own priority order, first two ship. |
 
 ### Phase 4 — Submission
 
@@ -194,6 +192,9 @@ Khadim's React app is an upgrade, not a dependency. The server-rendered dashboar
 ## Open Questions
 
 - [ ] **Q1 (Khadim):** Do you want me to scaffold `web/` with Vite + Tailwind + a typed API client so you only write components, or would you rather set it up yourself? Answer here and I'll do it in the next commit.
+
+- [x] **Q1 (Khadim):** Doing it myself — scaffolding `web/` now, don't touch it. Answered 18:05.
+
 - [ ] **Q2 (Stephen):** Render Workflows is public beta and metered — decision point at 18:10. If it isn't live by then, we fall back to a cron job **and drop the Render Workflows track claim entirely** rather than claim something unwired.
 - [ ] **Q3 (Stephen):** Whether to add `Revenue_BizLicenses_2025` (layer 46) as a fourth source. It would give a genuine year-over-year time series, but only if the 17:55 gate is already met.
 
