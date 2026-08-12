@@ -47,12 +47,19 @@
   "coverage_ratio_pct": 0.3,
   "coverage_corroborated": 2,
   "coverage_of": 659,
-  "panel_seats": 3,
+  "panel_seats": 4,
   "panel_models": [
     "gemini-3.6-flash",
     "gemma-4-31b-it",
-    "openai-gpt-oss-120b"
+    "openai-gpt-oss-120b",
+    "llama3.3-70b"
   ],
+  "panel_providers": {
+    "gemini-3.6-flash": "Google AI Studio",
+    "gemma-4-31b-it": "Google AI Studio (open weights)",
+    "openai-gpt-oss-120b": "DigitalOcean Gradient (open weights)",
+    "llama3.3-70b": "Snowflake Cortex (warehouse-native)"
+  },
   "panel_adjudicated": 6,
   "elapsed_ms": 6421,
   "persisted": true,
@@ -76,7 +83,8 @@
         "compression_enabled": false
       }
     ],
-    "total_observations": 1626,
-    "total_claims_stored": 11946
+    "timescaledb_version": "2.29.1",
+    "total_observations": 28455,
+    "total_claims_stored": 209055
   }
 }
