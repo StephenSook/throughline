@@ -16,20 +16,26 @@ Legend: ✅ done · 🟡 in progress · ⬜ not started · ⛔ blocked · ✂️
 
 ---
 
-## ⏱️ Status snapshot (last sync 17:15)
+## ⏱️ Status snapshot (last sync 19:25)
 
-Backend engine is **working on real data**. Deployed and green since 16:45.
+Backend is **complete, deployed, and running on real data**. Green since 16:45, before any engine code existed.
 
-Live measured numbers from a real run (not seeded, not hardcoded):
+Live measured numbers from a real run (not seeded, not hardcoded — enforced by a test):
 
 | Metric | Value |
 |---|---|
 | Entities resolved across 3 authorities | **1,281** |
 | Claims ingested | **5,945** |
-| Divergences detected | **675** |
-| Critical (stale record) | **658** |
-| Divergence rate | **51.91%** |
-| Pipeline wall time | ~0.7 s |
+| Divergences detected | **791** |
+| Critical (asserted 4.8 years ago, served as current) | **658** |
+| Addresses the U.S. Census Bureau cannot resolve | **58** |
+| Coordinates conflicting with the federal geocode | **58** |
+| Divergence rate | **53.08%** |
+| Sources healthy | **4 / 4** |
+| Tests | **41 passing**, CI green on `927df45` |
+
+**Tracks claimed: 4 of 9.** Hack for Good · Atlanta Open Data · Gemini API · Gemma 4.
+**Tracks cut, deliberately:** Render Workflows, Tiger Data, Snowflake, DigitalOcean. None wired, so none claimed. Wired or cut.
 
 **The finding:** `Atlanta_Child_Care_Facilities` (681 licensed facilities) declares its own
 `SOURCE = https://families.decal.ga.gov/provider/data` and `SOURCEDATE = 2021-10-21`.

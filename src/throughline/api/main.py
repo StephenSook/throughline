@@ -56,8 +56,16 @@ async def warm() -> None:
     """
 
     async def _run() -> None:
+        # Two passes, deliberately. The first is the fast path: sources and the
+        # deterministic engine only, so the dashboard has real numbers within
+        # seconds of boot. The panel adds up to two dozen model calls, and
+        # making the first paint wait on those means a judge opening a cold
+        # link sees a 503 for minutes — which is a worse failure than having no
+        # panel at all.
         with contextlib.suppress(Exception):
-            await STORE.execute(geocode=True)
+            await STORE.execute(geocode=True, adjudicate_tail=False)
+        with contextlib.suppress(Exception):
+            await STORE.execute(geocode=True, adjudicate_tail=True)
 
     asyncio.create_task(_run())
 

@@ -176,7 +176,7 @@ async def _ask(client: httpx.AsyncClient, model: str, prompt: str, api_key: str)
     return vote if vote else {"error": f"unparseable verdict: {text[:120]!r}"}
 
 
-async def adjudicate(divergences: list[Divergence], *, limit: int = 12) -> dict:
+async def adjudicate(divergences: list[Divergence], *, limit: int = 6) -> dict:
     """Run the panel over the ambiguous tail. Mutates `adjudication` in place.
 
     Bounded by `limit` because a demo should not make hundreds of model calls,
