@@ -1,6 +1,6 @@
 # Devpost submission — Throughline
 
-Paste-ready. **Every claim below was grepped against the shipped code before being written.** If something got cut, it does not appear here.
+Paste-ready. **Every number here is read from [`FACTS.json`](./FACTS.json), written by a real reconciliation run, and every named technology was grepped against the shipped code before being written.** If something got cut, it does not appear here.
 
 ---
 
@@ -10,7 +10,7 @@ Paste-ready. **Every claim below was grepped against the shipped code before bei
 
 ## Elevator pitch (200 char max)
 
-> Atlanta serves a child care registry last refreshed in 2021 as if it were current. Throughline reconciles public records across authorities and measures how wrong they are.
+> Atlanta publishes a child care registry last refreshed in 2021 as if it were current. Throughline reconciles public records across authorities and measures how wrong they actually are.
 
 ---
 
@@ -22,7 +22,7 @@ A child in foster care exists simultaneously inside five or six institutions —
 
 The consequence isn't administrative. It's that a child arrives at a new school with no transcript and sits out for weeks, repeats a class they already passed, or misses a prescription because nobody knew about it.
 
-There's one number nobody has: **how wrong is the record, actually?** We set out to build the thing that measures it.
+There's one number nobody has: **how wrong is the record, actually?** We built the thing that measures it.
 
 ### What it does
 
@@ -39,19 +39,24 @@ SOURCEDATE  1634774400000  ->  2021-10-21
 
 That's the Georgia state child care licensing registry, snapshotted **21 October 2021**, republished as current ever since — four years and ten months. Georgia DECAL's own provider API is auth-gated and returns 401, so this dataset is the *only* public view of that registry.
 
-On a live run against four public sources, Throughline reports:
+On a live run against **five public sources**, Throughline reports:
 
 | | |
 |---|---|
-| Entities resolved across 3 authorities | **1,281** |
-| Claims ingested | **5,945** |
-| Divergences | **791** |
-| Critical (asserted 4.8 years ago, served as current) | **658** |
+| Entities resolved across 5 authorities | **1,344** |
+| Claims ingested | **6,385** |
+| Divergences | **813** |
+| Critical — asserted 4.8 years ago, served as current | **658** |
+| Published coordinates conflicting with the federal geocode | **69** |
 | Addresses the U.S. Census Bureau **cannot resolve** | **58** |
-| Published coordinates conflicting with the federal geocode | **58** |
-| Divergence rate | **53.1%** |
+| ZIP codes two authorities disagree on | **14** |
+| Addresses local and federal records disagree on | **10** |
+| Records with a live identifier and an empty address | **3** |
+| Schools one authority calls open and another does not | **1** |
+| **Divergence rate** | **51.9%** |
+| Full pipeline, five live APIs | **6.4s** |
 
-Every figure is computed during a run against live public APIs. Nothing is hardcoded, there's a test enforcing that, and any single number can be walked back to its raw source record via `GET /api/provenance/{claim_id}`.
+Every figure is computed during a run against live public APIs. Nothing is hardcoded, a test enforces that, and any single number walks back to its raw source record via `GET /api/provenance/{claim_id}`.
 
 ### The number we refused to report
 
@@ -61,60 +66,63 @@ That number was wrong, and it was wrong in our favour.
 
 The City of Atlanta's published 2026 licence roll holds **506 records for the entire city**, six of them child day care. A registry of 681 facilities can't be refuted by a roll that small — absence from it carries almost no information.
 
-So Throughline now measures the corroborating authority's coverage before drawing any inference from absence. It measured **0.003 against a required 0.25**, suppressed its own 656 findings, and says why — on the dashboard, in the API, and in the README. Our headline dropped from 1,331 to 791.
+So Throughline now measures the corroborating authority's coverage before drawing any inference from absence. It found that roll corroborates **2 of 659** entities — **0.3%**, against a required 25% — so the rule **suppresses itself** and says why, on the dashboard, in the API, and in the README.
 
 A tool about record integrity that inflated its own count using a source it never checked would be committing the exact failure it exists to detect.
 
 ### How we built it
 
 ```
-4 REAL PUBLIC SOURCES (no auth on any)
-  Atlanta Child Care Facilities · Atlanta Business Licenses 2026
-  Atlanta Public Schools · U.S. Census Bureau Geocoder
-        -> CLAIM STORE          append-only, provenance + sha256 per claim
-        -> ENTITY RESOLUTION    no shared key: blocking + rapidfuzz + address normalization
-        -> DIVERGENCE ENGINE    6 deterministic rules
-        -> COVERAGE GATE        can this authority support the inference at all?
-        -> ADJUDICATION PANEL   Gemini 3.6 Flash + Gemma 4 31B, ambiguous tail only
-        -> FastAPI + ranked worklist + provenance API
+FIVE REAL PUBLIC SOURCES (no auth on any)
+  Atlanta Child Care Facilities 681 · Business Licenses 2026 506
+  Atlanta Public Schools 132 · NCES federal directory 88 · US Census Geocoder
+   -> CLAIM STORE          append-only, provenance + sha256 per claim
+   -> ENTITY RESOLUTION    no shared key: blocking + rapidfuzz + address normalization
+   -> DIVERGENCE ENGINE    8 deterministic rules
+   -> COVERAGE GATE        can this authority support the inference at all?
+   -> ADJUDICATION PANEL   3 voters on 3 clouds, ambiguous tail only
+   -> TIMESCALEDB          hypertables + continuous aggregate + compression
+   -> FastAPI + ranked worklist + provenance API
+
+  RENDER WORKFLOW  fans out one retrying probe per authority, then reconciles
 ```
 
-Python 3.12, FastAPI, httpx, rapidfuzz. Deployed on **Render**. Dashboard is Jinja2 and hand-written CSS, light and dark, no framework. CI on GitHub Actions: ruff, ruff format, pytest, and an anti-fabrication guard.
+Python 3.12, FastAPI, httpx, rapidfuzz. Dashboard is Jinja2 and hand-written CSS, light and dark, no framework. CI on GitHub Actions: ruff, ruff format, 53 tests, and an anti-fabrication guard.
 
-**This is not a wrapper around a model API.** Delete Gemini and Gemma entirely and Throughline still ingests four sources, resolves entities across them with no shared identifier, computes six kinds of divergence, gates them on measured coverage, and reports a rate. A test enforces that boundary: the engine modules are forbidden from importing the model layer.
+**This is not a wrapper around a model API.** Delete all three models and Throughline still ingests five sources, resolves entities with no shared identifier, computes seven kinds of divergence, gates them on measured coverage, persists the series, and reports a rate. A test enforces that boundary: the engine modules are forbidden from importing the model layer.
 
-The models do exactly one narrow job — judging whether an *already-detected* discrepancy is a genuine conflict or a formatting artefact. They never count, never set severity, never decide a divergence exists. Both voted independently and agreed on our test cases: unanimous "artefact" on a casing-and-abbreviation difference, unanimous "genuine" on two different street addresses. Every vote is stored and displayed with its rationale, including dissent.
-
-Gemma is there for an architectural reason rather than a second opinion: an agency that can't send record data to a third-party cloud can run Gemma on its own hardware and keep the capability. The on-premises path isn't a downgrade to nothing.
+The models do one narrow job — judging whether an *already-detected* discrepancy is a genuine conflict or a formatting artefact. They never count, never set severity, never decide a divergence exists.
 
 ### Challenges we ran into
 
-**Absence isn't evidence.** Covered above — it cost us 656 findings and it's the thing we're proudest of.
+**Absence isn't evidence.** Covered above — it cost us ~650 findings and it's the thing we're proudest of.
 
-**Entity resolution with no shared key.** Three registries describe overlapping sets of real places and not one carries an identifier the others recognise. A false match invents a disagreement between two places that were never the same place, and we'd report that invention to a human as a defect. So: blocking on ZIP and name head, rapidfuzz with address weighted above name, and an explicit review band (72–88) where the system *declines to merge* rather than guess. `GET /api/matches` exposes what we nearly merged.
+**Entity resolution with no shared key.** Five registries describe overlapping sets of real places and not one carries an identifier the others recognise. The city's school layer carries `GADOE_ID`; the federal directory carries `ncessch`; neither recognises the other. A false match invents a disagreement between two places that were never the same place. So: blocking on ZIP and name head, rapidfuzz with address weighted above name, and an explicit review band (72–88) where the system *declines to merge* rather than guess. `GET /api/matches` exposes what we nearly merged.
 
-**Atlanta is quadrant-addressed.** NW versus NE is load-bearing — the same street number exists in more than one quadrant, and dropping the directional merges two genuinely different places. `"929 CHARLES ALLEN DRIVE N. E."` and `"929 Charles Allen Dr NE"` are the same building and must normalize identically.
+**Atlanta is quadrant-addressed.** NW versus NE is load-bearing — the same street number exists in more than one quadrant. `"929 CHARLES ALLEN DRIVE N. E."` and `"929 Charles Allen Dr NE"` are the same building and must normalize identically.
 
-**A 200 isn't a success.** Government and enterprise hosts answer rate-limited clients with challenge pages served as HTTP 200. Our connectors validate payload shape and size, never the status line, and a failed fetch is never persisted — a file that exists is a file something downstream will parse.
+**A 200 isn't a success — and our own guard proved it too aggressively.** Government hosts answer rate-limited clients with challenge pages served as HTTP 200, so our connectors validate payload shape rather than the status line. Then the guard rejected a perfectly good 13-byte `{"count":681}` as a suspected block page. A WAF challenge is HTML, so size is only evidence when the body isn't valid JSON. Parse first, then judge size. Six tests now cover both directions.
+
+**Deployed code fails differently.** Our first Render Workflow run died on `asyncio.run() cannot be called from a running event loop` — the SDK executor already runs inside a loop and awaits coroutine tasks natively. It retried four times before surfacing, which was independent evidence the retry policy worked.
 
 ### Accomplishments we're proud of
 
-- We found something real, in public data, about children, in the host city — and it had been sitting there unmeasured for four years.
+- We found something real, in public data, about children, in the host city — sitting unmeasured for four years.
 - Our tool suppressed its own headline number rather than overstate it.
-- 41 tests. Green CI. A guard that fails rather than skips, sees untracked files, and includes non-vacuity checks so a bug that made it scan nothing would fail rather than go green.
+- 53 tests. Green CI. A guard that fails rather than skips, sees untracked files, and includes non-vacuity checks so a bug that made it scan nothing would fail rather than go green.
 - Every claim on every screen is independently verifiable by a stranger, against public URLs, with no API key.
 
 ### What we learned
 
 That the hardest part of interoperability isn't the pipes — it's knowing when your evidence doesn't support your conclusion. We spent more of the build on the coverage gate than on any single connector, and it's the part that makes the rest trustworthy.
 
-Also, concretely: probabilistic entity resolution, USPS address normalization, the Census batch geocoder, ArcGIS FeatureServer layer discovery, and structured-output prompting against two different model families.
+Concretely: probabilistic entity resolution, USPS address normalization, the Census batch geocoder, ArcGIS FeatureServer layer discovery, TimescaleDB hypertables and continuous aggregates, Render's Workflows SDK, and structured-output prompting across three different model families on three clouds.
 
 ### What's next for Throughline
 
-The spec this was built from sequences two products. Tonight we built **The Ledger** — the audit. Next is **The Relay**: when a child's placement changes, automatically deliver the transcript, immunization record, IEP, and current court order to the receiving school *before the child arrives*.
+The spec this was built from sequences two products. We built **The Ledger** — the audit. Next is **The Relay**: when a child's placement changes, automatically deliver the transcript, immunization record, IEP, and current court order to the receiving school *before the child arrives*.
 
-More immediately: the second year of Atlanta's licence roll to get a genuine year-over-year series, and persistence so the divergence rate can be tracked across runs and shown to fall.
+More immediately: the 2025 licence roll for a genuine year-over-year series, and a scheduled Workflow so the divergence rate is tracked continuously and can be shown to fall.
 
 ### Explicit non-goals
 
@@ -128,26 +136,30 @@ Enforced in the code, not just stated:
 
 ## Built with
 
-`python` · `fastapi` · `render` · `google-gemini` · `gemma` · `rapidfuzz` · `arcgis` · `us-census-geocoder` · `atlanta-open-data` · `github-actions` · `jinja2` · `httpx`
+`python` · `fastapi` · `render` · `render-workflows` · `timescaledb` · `tigerdata` · `google-gemini` · `gemma` · `digitalocean` · `digitalocean-gradient` · `rapidfuzz` · `arcgis` · `us-census-geocoder` · `nces` · `atlanta-open-data` · `github-actions` · `jinja2` · `httpx` · `asyncpg`
 
 ## Try it out
 
 - Live: https://throughline-api-yo1p.onrender.com
 - Repo: https://github.com/StephenSook/throughline
 - API docs: https://throughline-api-yo1p.onrender.com/docs
+- Proof the hypertables are real: https://throughline-api-yo1p.onrender.com/api/storage
 
 ---
 
 ## Prize categories to check
 
-Claim only these four. Each is load-bearing and greppable in the shipped code.
+Each is load-bearing and greppable in the shipped code.
 
 - [x] **Best Hack for Good**
 - [x] **Best Use of Atlanta Open Data** — three City of Atlanta datasets are the engine's input, not decoration
-- [x] **Best Use of Gemini API** — adjudication panel
-- [x] **Best Use of Gemma 4** — second independent voter, `gemma-4-31b-it`
+- [x] **Best Use of Render Workflows** — `workflow.py`, deployed as service `throughline-workflow`, three registered tasks, verified green run returning 813 divergences across three concurrently-probed authorities
+- [x] **Best Use of Tiger Data** (both listings) — TimescaleDB 2.29.1 on Tiger Cloud: two hypertables, the `divergence_rate_hourly` continuous aggregate backing the chart, and a compression policy on closed chunks
+- [x] **Best Use of Gemini API** — panel seat 1
+- [x] **Best Use of Gemma 4** — panel seat 2, `gemma-4-31b-it`
+- [x] **Best Use of DigitalOcean** — panel seat 3, `openai-gpt-oss-120b` on Gradient serverless inference
 
-**Do NOT check:** Render Workflows (we deploy on Render but did not build a Workflow service — cut rather than overclaim), Tiger Data, Snowflake, DigitalOcean. None are wired, so none are claimed.
+**Snowflake:** check only if the Cortex seat landed. If it did not, leave it unchecked — we do not claim what we did not wire.
 
 ## Required form fields
 
@@ -155,18 +167,22 @@ Claim only these four. Each is load-bearing and greppable in the shipped code.
 
 **"Did you implement a generative AI model or API in your hack?"**
 
-> Yes. Gemini 3.6 Flash and Gemma 4 31B (both via Google AI Studio) form a two-model adjudication panel that votes on whether an already-detected discrepancy is a genuine conflict between authorities or an artefact of formatting and abbreviation. Each model votes independently, every vote is stored and displayed with its rationale including dissent, and a model that fails to answer is recorded as an error rather than counted as agreement.
+> Yes — as a three-seat adjudication panel on three different clouds. Gemini 3.6 Flash (Google AI Studio), Gemma 4 31B (Google AI Studio, open weights) and GPT-OSS-120B (DigitalOcean Gradient, open weights) each vote independently on whether an already-detected discrepancy is a genuine conflict between authorities or an artefact of formatting and abbreviation. Every vote is stored and displayed with its rationale including dissent, and a model that fails to answer is recorded as an error rather than counted as agreement.
 >
-> Deliberately, the models are used only on the ambiguous tail and never produce a number. They do not count, do not set severity, and do not decide that a divergence exists — all six divergence rules are deterministic Python. Delete both models and the system still ingests four public sources, resolves entities across them with no shared identifier, computes divergences, and reports a rate. A test in our CI enforces that boundary by forbidding the engine modules from importing the model layer.
+> Three seats rather than two is deliberate: two voters can only agree or deadlock, three produce a majority, and three vendors on three infrastructures mean a single provider outage degrades the panel instead of ending it.
 >
-> We chose Gemma alongside Gemini for an architectural reason rather than a second opinion: an agency that cannot send record data to a third-party cloud can run Gemma on its own hardware and retain the capability.
+> Deliberately, the models are used only on the ambiguous tail and never produce a number. They do not count, do not set severity, and do not decide that a divergence exists — all eight divergence rules are deterministic Python. Delete all three models and the system still ingests five public sources, resolves entities across them with no shared identifier, computes divergences, persists the time series, and reports a rate. A test in our CI enforces that boundary by forbidding the engine modules from importing the model layer.
 
 **"Gemini Project Number"** → `150614014893`
 
 **"Share feedback about any technology you interacted with at this hackathon"**
 
-> Render: creating the web service and deploying from a GitHub repo took under two minutes, and having the deploy green before we wrote any engine code removed the usual end-of-hackathon deployment panic entirely. Worth noting for other teams that Render Postgres ships TimescaleDB in Apache edition only, so continuous aggregates are unavailable there.
+> **Render** — creating the web service and deploying from GitHub took under two minutes, and getting a green deploy before writing any engine code removed the usual end-of-hackathon deployment panic entirely. Render Workflows (beta) was the highlight: `render_sdk` 0.7.0, tasks as decorated functions with per-task retry and timeout, and a fan-out shape a cron entry can't express. Two things worth flagging for other teams: Blueprints can't yet declare Workflows, so `render.yaml` covers the web service only and the Workflow is created in the dashboard; and tasks must be `async def` — the executor already runs inside an event loop, so `asyncio.run()` inside a task raises. One more: Render Postgres ships TimescaleDB in Apache edition only, so continuous aggregates aren't available there.
 >
-> Gemini API: `models.list` was the fastest way to confirm exactly which model IDs a key can reach, which saved us guessing. One gotcha worth flagging — with `maxOutputTokens` set low, a reasoning model's thinking budget can consume the entire allowance and return a candidate with no text part at all, which is indistinguishable from a refusal. Raising the cap and joining every text part fixed it. `responseMimeType: application/json` made verdicts parse reliably.
+> **Tiger Data** — the Tiger CLI made this the smoothest integration of the night: `brew install --cask timescale/tap/tiger-cli`, OAuth login, `tiger service create`, and a ready TimescaleDB service in about ninety seconds with the password stored in the system keyring rather than pasted anywhere. Continuous aggregates are exactly right for a longitudinal benchmark, since the series only grows and the chart has to stay fast as it does.
 >
-> Atlanta Open Data: the `opendata.atlantaga.gov` portal is dead (TLS failure, Azure 404 behind it), but the underlying ArcGIS Online organisation is fully live and unauthenticated. Layer IDs are non-obvious and non-sequential — child care is layer 6, business licences layer 50 — so `/FeatureServer?f=json` is essential for discovery. Several datasets carry `SOURCE` and `SOURCEDATE` columns that make provenance auditing possible, which is exactly what our project depends on.
+> **Gemini API** — `models.list` was the fastest way to confirm which model IDs a key can actually reach. One gotcha: with `maxOutputTokens` set low, a reasoning model's thinking budget can consume the whole allowance and return a candidate with no text part, which is indistinguishable from a refusal. Raising the cap and joining every text part fixed it; `responseMimeType: application/json` made verdicts parse reliably.
+>
+> **DigitalOcean Gradient** — pleasant surprise: the standard DO API token works directly against the OpenAI-compatible inference endpoint, no separate model-access key needed, and `openai-gpt-oss-120b` returned clean structured JSON first try.
+>
+> **Atlanta Open Data** — the `opendata.atlantaga.gov` portal is dead (TLS failure, Azure 404 behind it), but the underlying ArcGIS Online organisation is fully live and unauthenticated. Layer IDs are non-obvious and non-sequential — child care is layer 6, business licences layer 50 — so `/FeatureServer?f=json` is essential for discovery. Several datasets carry `SOURCE` and `SOURCEDATE` columns that make provenance auditing possible, which is exactly what our project depends on.
