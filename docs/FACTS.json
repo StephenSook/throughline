@@ -1,0 +1,82 @@
+{
+  "entities_resolved": 1344,
+  "claims": 6385,
+  "divergences_total": 813,
+  "divergence_rate_pct": 51.9,
+  "by_kind": {
+    "STALE_RECORD": 658,
+    "STATUS_CONFLICT": 1,
+    "ADDRESS_UNRESOLVABLE": 58,
+    "ADDRESS_MISMATCH": 10,
+    "EMPTY_REQUIRED_FIELD": 3,
+    "ZIP_MISMATCH": 14,
+    "GEO_DIVERGENCE": 69
+  },
+  "by_severity": {
+    "critical": 659,
+    "high": 68,
+    "medium": 86
+  },
+  "sources": [
+    {
+      "id": "atlanta_childcare",
+      "rows": 681,
+      "ok": true
+    },
+    {
+      "id": "atlanta_licenses",
+      "rows": 506,
+      "ok": true
+    },
+    {
+      "id": "atlanta_schools",
+      "rows": 132,
+      "ok": true
+    },
+    {
+      "id": "federal_schools",
+      "rows": 88,
+      "ok": true
+    },
+    {
+      "id": "census_geocoder",
+      "rows": 1384,
+      "ok": true
+    }
+  ],
+  "coverage_ratio_pct": 0.3,
+  "coverage_corroborated": 2,
+  "coverage_of": 659,
+  "panel_seats": 3,
+  "panel_models": [
+    "gemini-3.6-flash",
+    "gemma-4-31b-it",
+    "openai-gpt-oss-120b"
+  ],
+  "panel_adjudicated": 6,
+  "elapsed_ms": 6421,
+  "persisted": true,
+  "timescale": {
+    "hypertables": [
+      {
+        "hypertable_name": "divergence_observations",
+        "num_chunks": 1,
+        "compression_enabled": true
+      },
+      {
+        "hypertable_name": "claim_observations",
+        "num_chunks": 1,
+        "compression_enabled": false
+      }
+    ],
+    "continuous_aggregates": [
+      {
+        "view_name": "divergence_rate_hourly",
+        "materialization_hypertable_name": "_materialized_hypertable_3",
+        "compression_enabled": false
+      }
+    ],
+    "total_observations": 1626,
+    "total_claims_stored": 11946
+  }
+}

@@ -16,33 +16,47 @@ Legend: ✅ done · 🟡 in progress · ⬜ not started · ⛔ blocked · ✂️
 
 ---
 
-## ⏱️ Status snapshot (last sync 19:25)
+## ⏱️ Status snapshot (last sync 17:17)
 
 Backend is **complete, deployed, and running on real data**. Green since 16:45, before any engine code existed.
 
-Live measured numbers from a real run (not seeded, not hardcoded — enforced by a test):
+Live measured numbers, from `docs/FACTS.json` written by a real run — not seeded, not hardcoded, enforced by a test:
 
 | Metric | Value |
 |---|---|
-| Entities resolved across 3 authorities | **1,281** |
-| Claims ingested | **5,945** |
-| Divergences detected | **791** |
+| Public sources reconciled | **5** (681 · 506 · 132 · 88 + Census geocoder) |
+| Entities resolved across authorities | **1,344** |
+| Claims ingested | **6,385** |
+| Divergences detected | **813** |
 | Critical (asserted 4.8 years ago, served as current) | **658** |
+| Coordinates conflicting with the federal geocode | **69** |
 | Addresses the U.S. Census Bureau cannot resolve | **58** |
-| Coordinates conflicting with the federal geocode | **58** |
-| Divergence rate | **53.08%** |
-| Sources healthy | **4 / 4** |
-| Tests | **41 passing**, CI green on `927df45` |
+| Divergence rate | **51.9%** |
+| Adjudication panel | **3 seats on 3 clouds** |
+| Observations persisted to TimescaleDB | **1,626** |
+| Claims persisted | **11,946** |
+| Tests | **53 passing**, CI green |
 
-**Tracks claimed: 4 of 9.** Hack for Good · Atlanta Open Data · Gemini API · Gemma 4.
-**Tracks cut, deliberately:** Render Workflows, Tiger Data, Snowflake, DigitalOcean. None wired, so none claimed. Wired or cut.
+**Judge path verified on the deployed URL:** all 10 public endpoints return 200, and
+`/api/provenance/{claim_id}` round-trips to the raw source record with its URL, fetch
+timestamp, asserted date and sha256. Any number on any screen is checkable by a stranger.
 
-**The finding:** `Atlanta_Child_Care_Facilities` (681 licensed facilities) declares its own
-`SOURCE = https://families.decal.ga.gov/provider/data` and `SOURCEDATE = 2021-10-21`.
-The City of Atlanta has been republishing a **4.8-year-old snapshot of the Georgia state
-child care licensing registry** as current data.
+### Sponsor tracks — 7 wired, 0 claimed-but-unwired
 
----
+| Track | Status | Evidence |
+|---|---|---|
+| Best Hack for Good | ✅ | The thesis. Child-welfare record integrity. |
+| Best Use of Atlanta Open Data | ✅ | 3 City of Atlanta datasets are the engine's input, not decoration |
+| Best Use of Render Workflows | ✅ | `throughline-workflow`, 3 registered tasks, **green run** returning 813 divergences across 3 concurrently-probed authorities |
+| Best Use of Tiger Data (×2) | ✅ | TimescaleDB 2.29.1 on Tiger Cloud: 2 hypertables, `divergence_rate_hourly` continuous aggregate, compression policy |
+| Best Use of Gemini API | ✅ | Panel seat 1, `gemini-3.6-flash` |
+| Best Use of Gemma 4 | ✅ | Panel seat 2, `gemma-4-31b-it` |
+| Best Use of DigitalOcean | ✅ | Panel seat 3, `openai-gpt-oss-120b` on Gradient serverless inference |
+| Best Use of Snowflake | 🟡 | Cortex as a 4th seat. Claimed **only** if it lands. |
+
+Nothing is claimed that the code does not back. A grep for `snowflake`, and previously for
+`render_sdk`, `timescale` and `digitalocean`, is the check — and it is run before every
+judge-facing surface ships.
 
 ## 🌅 Khadim — read this first
 
@@ -109,7 +123,7 @@ edit the Python.
 | 1.5 | Census geocoder connector | `connectors/census.py` | **Stephen** | ✅ 17:00 | Batch endpoint, 500-row chunks. Distinguishes "Census declined this address" (evidence) from "Census never answered" (not evidence) — only the first can produce a finding. |
 | 1.6 | Entity resolution | `core/resolve.py` | **Stephen** | ✅ 17:04 | Blocking on ZIP + name head, rapidfuzz scoring, address weighted 0.6 over name 0.4. Explicit review band (72–88) where we **decline to merge** rather than guess. Unmatched records are kept, not dropped — a facility appearing in only the stale registry is the most interesting row, and dropping it would flatter the rate. |
 | 1.7 | Divergence engine, 6 rules | `core/diverge.py` | **Stephen** | ✅ 17:05 | `STALE_RECORD`, `ADDRESS_UNRESOLVABLE`, `GEO_DIVERGENCE`, `ZIP_MISMATCH`, `MISSING_IN_CURRENT_AUTHORITY`, `EMPTY_REQUIRED_FIELD`. Deterministic — no model runs here, so every verdict is reproducible by hand from public URLs. |
-| 1.8 | **Coverage gate** | `core/diverge.py` | **Stephen** | ✅ 17:14 | First run reported 656 `MISSING_IN_CURRENT_AUTHORITY`. Investigated instead of shipping it: the licence roll is **506 records for the whole city, 6 of them child day care**, so absence from it proves nothing. Measured coverage ratio = **0.003** vs 0.25 required → the rule now **suppresses itself** and says why. Killed 656 false findings and dropped the headline from 1,331 to **675 fully-evidenced** ones. |
+| 1.8 | **Coverage gate** | `core/diverge.py` | **Stephen** | ✅ 17:14 | First run reported 656 `MISSING_IN_CURRENT_AUTHORITY`. Investigated instead of shipping it: the licence roll is **506 records for the whole city, 6 of them child day care**, so absence from it proves nothing. Measured coverage ratio = **0.003** vs 0.25 required → the rule now **suppresses itself** and says why. Killed 656 false findings and dropped that run's headline from 1,331 to **675 fully-evidenced** ones. (Both figures are from the 3-source run at 17:14; the current 5-source figure is **813** — see the status snapshot at the top, which is the only place to read a live number from.) |
 | 1.9 | Pipeline: ingest → resolve → diverge | `core/pipeline.py` | **Stephen** | ✅ 17:12 | One code path shared by the API, the CLI and the Render Workflow so they cannot drift. Partial-source runs complete and record the outage rather than silently narrowing input. |
 
 ### Phase 2 — API, persistence, models  *(in progress)*

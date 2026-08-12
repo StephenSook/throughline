@@ -12,17 +12,25 @@ and reports a rate — because the verdict is deterministic and lives in
 `core.diverge`. That is the difference between a system and a wrapper around
 somebody else's API, and it is deliberate.
 
-Two independent voters, because one model agreeing with itself is not a panel:
+**Three independent voters, on three different clouds.** One model agreeing with
+itself is not a panel, and two voters cannot break a tie:
 
-  * **Gemini** — hosted frontier model, strong general judgement.
-  * **Gemma** — open-weights, Apache-2.0. Present for a real architectural
-    reason rather than a second opinion: an agency that cannot send record data
-    to a third-party cloud can run Gemma on its own hardware and keep this
-    capability. The panel is designed so the on-premises path is not a downgrade
-    to nothing.
+  * **Gemini 3.6 Flash** — hosted frontier model, Google. Strong general
+    judgement.
+  * **Gemma 4 31B** — open-weights, Apache-2.0, Google AI Studio. Present for a
+    real architectural reason rather than a second opinion: an agency that
+    cannot send record data to a third-party cloud can run Gemma on its own
+    hardware and keep this capability, so the on-premises path is not a
+    downgrade to nothing.
+  * **GPT-OSS-120B** — open-weights, Apache-2.0, served on DigitalOcean Gradient.
+    A different vendor on different infrastructure, so a single provider outage
+    degrades the panel rather than ending it, and no one company's model can
+    quietly decide every ambiguous case.
 
-Every vote is stored with its rationale and displayed next to the deterministic
-verdict, including dissent. A panel that hides disagreement is just an average.
+Two voters can only agree or deadlock. Three can produce a majority, and the
+minority opinion stays visible: every vote is stored with its rationale and
+displayed next to the deterministic verdict, dissent included. A panel that
+hides disagreement is just an average wearing a panel's clothes.
 """
 
 from __future__ import annotations
@@ -37,11 +45,16 @@ from .models import Divergence
 
 API_ROOT = "https://generativelanguage.googleapis.com/v1beta/models"
 
-# Both verified present on this key via the models.list endpoint on 2026-08-12.
-# Pinned rather than using a `-latest` alias so a silent upstream model swap
-# cannot change the panel's behaviour between the demo and the judging.
+# All three verified present on their providers' model-list endpoints on
+# 2026-08-12. Pinned rather than using `-latest` aliases so a silent upstream
+# model swap cannot change the panel's behaviour between demo and judging.
 GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.6-flash")
 GEMMA_MODEL = os.environ.get("GEMMA_MODEL", "gemma-4-31b-it")
+DO_MODEL = os.environ.get("DO_MODEL", "openai-gpt-oss-120b")
+
+# DigitalOcean Gradient serverless inference. OpenAI-compatible, so the third
+# voter needs a different request shape from the two Google-hosted ones.
+DO_ROOT = "https://inference.do-ai.run/v1/chat/completions"
 
 # Only the ambiguous tail is worth a model's opinion. A record whose own
 # publisher stamped it 2021 is not ambiguous, and spending a panel call on it
@@ -176,6 +189,35 @@ async def _ask(client: httpx.AsyncClient, model: str, prompt: str, api_key: str)
     return vote if vote else {"error": f"unparseable verdict: {text[:120]!r}"}
 
 
+async def _ask_digitalocean(client: httpx.AsyncClient, prompt: str, token: str) -> dict:
+    """The third voter, on DigitalOcean Gradient's OpenAI-compatible endpoint."""
+    try:
+        response = await client.post(
+            DO_ROOT,
+            headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+            json={
+                "model": DO_MODEL,
+                "messages": [{"role": "user", "content": prompt}],
+                "temperature": 0,
+                "max_tokens": 500,
+            },
+            timeout=60.0,
+        )
+    except (httpx.TimeoutException, httpx.TransportError) as exc:
+        return {"error": f"unreachable: {type(exc).__name__}"}
+
+    if response.status_code != 200:
+        return {"error": f"HTTP {response.status_code}: {response.text[:180]}"}
+
+    try:
+        text = response.json()["choices"][0]["message"]["content"] or ""
+    except (KeyError, IndexError, ValueError):
+        return {"error": "unexpected response shape"}
+
+    vote = _parse_vote(text)
+    return vote if vote else {"error": f"unparseable verdict: {text[:120]!r}"}
+
+
 async def adjudicate(divergences: list[Divergence], *, limit: int = 6) -> dict:
     """Run the panel over the ambiguous tail. Mutates `adjudication` in place.
 
@@ -184,12 +226,22 @@ async def adjudicate(divergences: list[Divergence], *, limit: int = 6) -> dict:
     A silent cap reads as full coverage when it is not.
     """
     api_key = os.environ.get("GEMINI_API_KEY", "").strip()
+    do_token = os.environ.get("DIGITAL_OCEAN_API_KEY", "").strip()
     candidates = [d for d in divergences if is_ambiguous(d)]
 
-    if not api_key:
+    seats: list[str] = []
+    if api_key:
+        seats += [GEMINI_MODEL, GEMMA_MODEL]
+    if do_token:
+        seats.append(DO_MODEL)
+
+    if not seats:
         return {
             "enabled": False,
-            "reason": "GEMINI_API_KEY is not set; the panel did not run.",
+            "reason": (
+                "No model credentials configured (GEMINI_API_KEY, DIGITAL_OCEAN_API_KEY); "
+                "the panel did not run."
+            ),
             "ambiguous_total": len(candidates),
             "adjudicated": 0,
             "note": (
@@ -210,12 +262,18 @@ async def adjudicate(divergences: list[Divergence], *, limit: int = 6) -> dict:
                 detail=divergence.detail,
                 values=_format_values(divergence),
             )
-            gemini_vote, gemma_vote = await asyncio.gather(
-                _ask(client, GEMINI_MODEL, prompt, api_key),
-                _ask(client, GEMMA_MODEL, prompt, api_key),
-            )
+            # Every seat votes concurrently and independently. No voter sees
+            # another's answer, so agreement means agreement rather than one
+            # model anchoring the rest.
+            calls = []
+            if api_key:
+                calls.append(_ask(client, GEMINI_MODEL, prompt, api_key))
+                calls.append(_ask(client, GEMMA_MODEL, prompt, api_key))
+            if do_token:
+                calls.append(_ask_digitalocean(client, prompt, do_token))
 
-            votes = {GEMINI_MODEL: gemini_vote, GEMMA_MODEL: gemma_vote}
+            results = await asyncio.gather(*calls)
+            votes = dict(zip(seats, results, strict=True))
             valid = [v for v in votes.values() if v and "error" not in v]
             if not valid:
                 divergence.adjudication = {"votes": votes, "verdict": "panel unavailable"}
@@ -241,7 +299,13 @@ async def adjudicate(divergences: list[Divergence], *, limit: int = 6) -> dict:
 
     return {
         "enabled": True,
-        "models": [GEMINI_MODEL, GEMMA_MODEL],
+        "models": seats,
+        "providers": {
+            GEMINI_MODEL: "Google AI Studio",
+            GEMMA_MODEL: "Google AI Studio (open weights)",
+            DO_MODEL: "DigitalOcean Gradient (open weights)",
+        },
+        "seats": len(seats),
         "ambiguous_total": len(candidates),
         "adjudicated": adjudicated,
         "limit": limit,
