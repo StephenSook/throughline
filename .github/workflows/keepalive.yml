@@ -1,0 +1,28 @@
+name: Keepalive
+
+# Render free and starter instances spin down when idle, and a judge who clicks a
+# cold link sees a spinner and leaves. This keeps the service warm.
+#
+# Offset minutes, deliberately. GitHub throttles scheduled workflows on round
+# minutes and `*/N` expressions hardest: a `*/10` schedule has been observed
+# firing every 65 to 80 minutes while every run still reported success.
+on:
+  schedule:
+    - cron: "4,14,24,34,44,54 * * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping health and require a real reconciliation
+        # Bare exit path, no pipes. Checks the response CONTENT, not the status
+        # code: a warm instance that has lost its sources would still return 200.
+        run: |
+          set -euo pipefail
+          code=$(curl -sS -o body.json -w '%{http_code}' --max-time 90 \
+            https://throughline-api-yo1p.onrender.com/api/health)
+          echo "HTTP $code"
+          cat body.json
+          test "$code" = "200"
+          grep -q '"status":"ok"' body.json

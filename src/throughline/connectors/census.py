@@ -106,7 +106,11 @@ async def geocode_batch(
                 lon = float(coords[0]) if len(coords) == 2 else None
                 lat = float(coords[1]) if len(coords) == 2 else None
                 results[key] = GeocodeResult(
-                    key, True, record[4] or None, lat, lon,
+                    key,
+                    True,
+                    record[4] or None,
+                    lat,
+                    lon,
                     record[6] if len(record) > 6 else None,
                 )
             elif status in ("No_Match", "Tie"):

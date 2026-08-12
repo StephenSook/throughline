@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The anti-fabrication guard resolves its file set with git. A shallow
+          # checkout without history still exposes the index, which is all the
+          # guard needs, but fetch-depth 0 keeps it honest if that ever changes.
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync --frozen --extra dev
+
+      - name: Lint
+        run: uv run ruff check .
+
+      - name: Format check
+        run: uv run ruff format --check .
+
+      # Every gate below runs BARE. No pipe on the exit path: a pipeline's exit
+      # code is its last command's, so `pytest | tail` reports tail's success
+      # and a failing suite merges green.
+      - name: Tests
+        run: uv run pytest -q
+
+      - name: Guard is not vacuous
+        # Run the anti-fabrication guard explicitly and require it to have
+        # actually executed. -x so a failure stops here rather than being
+        # buried, and the run must report collected tests, never "no tests ran".
+        run: uv run pytest tests/test_no_fabricated_numbers.py -v --strict-markers -x
+
+      - name: Assert the guard collected tests
+        # A conditionally-skipped or uncollected guard is a false green: the run
+        # is honest and the assertion simply never executes. Fail if the guard
+        # did not run, and fail if anything in it was skipped.
+        run: |
+          set -euo pipefail
+          uv run pytest tests/test_no_fabricated_numbers.py -q --no-header > guard.txt
+          cat guard.txt
+          grep -qE '[0-9]+ passed' guard.txt
+          if grep -qE '[0-9]+ skipped' guard.txt; then
+            echo "::error::The anti-fabrication guard skipped a test. A skipped guard is a false green."
+            exit 1
+          fi
+
+      - name: App imports and serves
+        run: uv run python -c "from throughline.api.main import app; assert app.routes"

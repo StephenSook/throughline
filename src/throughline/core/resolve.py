@@ -145,9 +145,7 @@ def resolve(claims: list[Claim]) -> tuple[list[Entity], list[MatchCandidate]]:
                                 entity_key=key,
                                 subject=left.subject,
                                 claims=[*left.claims, *right.claims],
-                                match_scores={
-                                    f"{left.source}->{right.source}": round(combined, 1)
-                                },
+                                match_scores={f"{left.source}->{right.source}": round(combined, 1)},
                             )
                             entities.append(entity)
                             merged.add((left.source, left.subject))
