@@ -259,6 +259,88 @@ def rule_missing_in_current_authority(entity: Entity, coverage: dict) -> list[Di
     ]
 
 
+def rule_address_mismatch(entity: Entity) -> list[Divergence]:
+    """Two authorities put the same entity at materially different addresses.
+
+    Compares *normalized* addresses, so a divergence here is never an
+    abbreviation or a punctuation difference — those are collapsed before the
+    comparison. What survives is two authorities naming different places.
+    """
+    claims = [c for c in entity.by_field("address") if c.value]
+    if len(claims) < 2:
+        return []
+
+    by_source: dict[str, tuple[str, Claim]] = {}
+    for claim in claims:
+        canonical = normalize_address(claim.value)
+        if canonical:
+            by_source.setdefault(claim.source, (canonical, claim))
+
+    if len({v[0] for v in by_source.values()}) < 2:
+        return []
+
+    involved = [v[1] for v in by_source.values()]
+    rendered = "; ".join(f"{c.source} = {c.value!r}" for c in involved)
+    return [
+        Divergence(
+            entity_key=entity.entity_key,
+            subject=entity.subject,
+            field_name="address",
+            kind=DivergenceKind.ADDRESS_MISMATCH,
+            severity=Severity.HIGH,
+            confidence=0.75,
+            detail=(
+                f"Authorities record different street addresses for the same entity "
+                f"after normalization: {rendered}."
+            ),
+            claims=involved,
+        )
+    ]
+
+
+def rule_status_conflict(entity: Entity) -> list[Divergence]:
+    """One authority says operational, another does not.
+
+    The consequential case in the schools pair: a school the federal directory
+    records as closed while the local facilities layer still carries it as
+    active, or the reverse. For a child being enrolled mid-year, which of those
+    two a caseworker happens to read decides whether they are sent to a building
+    that is open.
+    """
+    claims = [c for c in entity.by_field("status") if c.value]
+    if len(claims) < 2:
+        return []
+
+    def operational(value: str) -> bool:
+        return value.upper().startswith("OPEN") or value.upper() in {"A", "ACTIVE"}
+
+    by_source = {c.source: c for c in claims}
+    if len(by_source) < 2:
+        return []
+
+    states = {operational(c.value) for c in by_source.values()}
+    if len(states) < 2:
+        return []
+
+    rendered = "; ".join(f"{c.source} = {c.value!r}" for c in by_source.values())
+    return [
+        Divergence(
+            entity_key=entity.entity_key,
+            subject=entity.subject,
+            field_name="status",
+            kind=DivergenceKind.STATUS_CONFLICT,
+            severity=Severity.CRITICAL,
+            confidence=0.85,
+            detail=(
+                f"Authorities disagree on whether this is operational: {rendered}. "
+                "A person acting on either record alone would be acting on a "
+                "contested fact."
+            ),
+            claims=list(by_source.values()),
+        )
+    ]
+
+
 def rule_empty_required_field(entity: Entity) -> list[Divergence]:
     """A record that exists, carries a live identifier, and says nothing."""
     out: list[Divergence] = []
@@ -302,6 +384,8 @@ def detect(
         found.extend(rule_address_unresolvable(entity, geocodes))
         found.extend(rule_geo_divergence(entity, geocodes))
         found.extend(rule_zip_mismatch(entity))
+        found.extend(rule_address_mismatch(entity))
+        found.extend(rule_status_conflict(entity))
         found.extend(rule_missing_in_current_authority(entity, coverage))
         found.extend(rule_empty_required_field(entity))
 

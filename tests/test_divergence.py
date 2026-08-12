@@ -22,9 +22,11 @@ from throughline.core.diverge import (
     MIN_COVERAGE_RATIO,
     assess_coverage,
     detect,
+    rule_address_mismatch,
     rule_empty_required_field,
     rule_missing_in_current_authority,
     rule_stale_record,
+    rule_status_conflict,
     rule_zip_mismatch,
     summarize,
 )
@@ -337,3 +339,52 @@ class TestRanking:
         )
         found = detect([e], {}, assess_coverage([e]))
         assert len({d.divergence_id for d in found}) == len(found)
+
+
+class TestAddressMismatch:
+    def test_different_streets_are_flagged(self):
+        e = entity(
+            claim(source="atlanta_schools", field_name="address", value="3200 Latona Dr SW"),
+            claim(source="federal_schools", field_name="address", value="845 Marietta St NW"),
+        )
+        found = rule_address_mismatch(e)
+        assert len(found) == 1
+        assert found[0].kind is DivergenceKind.ADDRESS_MISMATCH
+
+    def test_formatting_difference_is_not_a_mismatch(self):
+        """Normalization runs first, so abbreviation can never become a finding."""
+        e = entity(
+            claim(source="a", field_name="address", value="929 CHARLES ALLEN DRIVE N. E."),
+            claim(source="b", field_name="address", value="929 Charles Allen Dr NE"),
+        )
+        assert rule_address_mismatch(e) == []
+
+    def test_one_authority_cannot_mismatch_alone(self):
+        e = entity(claim(source="a", field_name="address", value="100 MAIN ST NW"))
+        assert rule_address_mismatch(e) == []
+
+
+class TestStatusConflict:
+    def test_open_versus_closed_is_critical(self):
+        e = entity(
+            claim(source="atlanta_schools", field_name="status", value="A"),
+            claim(source="federal_schools", field_name="status", value="CLOSED"),
+        )
+        found = rule_status_conflict(e)
+        assert len(found) == 1
+        assert found[0].kind is DivergenceKind.STATUS_CONFLICT
+        assert found[0].severity is Severity.CRITICAL
+
+    def test_both_operational_is_agreement(self):
+        e = entity(
+            claim(source="a", field_name="status", value="OPEN"),
+            claim(source="b", field_name="status", value="OPEN_NEW"),
+        )
+        assert rule_status_conflict(e) == []
+
+    def test_same_source_twice_is_not_a_conflict(self):
+        e = entity(
+            claim(source="a", field_name="status", value="OPEN"),
+            claim(source="a", field_name="status", value="CLOSED"),
+        )
+        assert rule_status_conflict(e) == []

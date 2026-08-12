@@ -17,7 +17,7 @@ from datetime import UTC, datetime
 
 import httpx
 
-from throughline.connectors import atlanta, census
+from throughline.connectors import atlanta, census, federal_schools
 from throughline.connectors.base import SourceUnavailable
 
 from .diverge import assess_coverage, detect, summarize
@@ -59,6 +59,7 @@ async def run_reconciliation(*, geocode: bool = True) -> RunResult:
             "atlanta_childcare": atlanta.fetch_childcare,
             "atlanta_licenses": atlanta.fetch_licenses,
             "atlanta_schools": atlanta.fetch_schools,
+            "federal_schools": federal_schools.fetch_federal_schools,
         }
         gathered = await asyncio.gather(
             *(fn(client) for fn in fetchers.values()), return_exceptions=True
