@@ -1,0 +1,16 @@
+# Throughline — Render Blueprint.
+# NOTE: Render Blueprints cannot yet create or manage Workflows. The reconciliation
+# Workflow is a separate service created in the dashboard (New > Workflow).
+services:
+  - type: web
+    name: throughline-api
+    runtime: python
+    plan: starter
+    region: virginia
+    branch: main
+    buildCommand: pip install uv && uv sync --frozen --no-dev
+    startCommand: .venv/bin/uvicorn throughline.api.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11"

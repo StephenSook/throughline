@@ -1,0 +1,23 @@
+.env
+.env.*
+!.env.example
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+dist/
+build/
+.DS_Store
+._*
+.vscode/
+.idea/
+*.log
+
+# Fetched source corpora — verifiable via data/manifest.json, not committed
+data/raw/
+node_modules/
+web/dist/
