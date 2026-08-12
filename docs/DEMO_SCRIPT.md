@@ -6,7 +6,7 @@ Built on the Sookra Pitch Arc + PAS (Problem · **Agitate** · Solution). The Ag
 
 **Record:** screen capture of `https://throughline-api-yo1p.onrender.com/` — the deployed URL, never localhost.
 
-**Target 1:50.** The required MLH intro line is technically a "company introduction first" anti-pattern, so say it fast and flat and get to the hook inside five seconds.
+**Target 1:55.** Hard ceiling 2:00. The required MLH intro line is technically a "company introduction first" anti-pattern, so say it fast and flat and get to the hook inside five seconds.
 
 ---
 
@@ -38,15 +38,25 @@ Built on the Sookra Pitch Arc + PAS (Problem · **Agitate** · Solution). The Ag
 
 *(Numbers land. **Do not talk over them.** This is the pause button.)*
 
-### 0:55 — 1:15 · Narrate outcomes, not features
+### 0:55 — 1:12 · Narrate outcomes, not features
 
-> "Twelve hundred and eighty-one entities, resolved across three authorities that share no common identifier. Seven hundred and ninety-one divergences. A fifty-three percent divergence rate.
+> "Thirteen hundred and forty-four entities, resolved across five authorities that share no common identifier. Eight hundred and thirteen divergences. A fifty-two percent divergence rate.
 >
-> Six hundred and fifty-eight records asserted as current whose own source date is four years old.
+> Six hundred and fifty-eight records asserted as current whose own source date is four years old. Fifty-eight addresses the U.S. Census Bureau cannot resolve at all.
 >
-> And fifty-eight addresses that the U.S. Census Bureau cannot resolve at all. That's one federal authority refusing to confirm a municipal one. Every source is public. No API key. You can reproduce this yourself in a browser."
+> Every source is public. No API key. You can reproduce this in a browser right now."
 
-### 1:15 — 1:38 · The "shouldn't be possible" moment. Scroll to the **coverage gate** and stop.
+### 1:12 — 1:30 · THE ONE. Scroll to Panel-adjudicated findings. **Stop and let it sit.**
+
+> "But this is the one I'd point at.
+>
+> Thomasville Heights Elementary. Atlanta's own facilities layer records it as active. The U.S. Department of Education's directory records it as closed. Same street address. Same building.
+>
+> Neither record carries the other's identifier, so nothing in either system connects them. Our matcher found them on name and address, flagged the conflict, and three models on three different clouds voted independently — all three said this one is real.
+>
+> I'm not claiming Atlanta doesn't know a school closed. The city calls it a facility and the feds call it a school, so the building may well still be in use. What I'm claiming is exactly what the code claims: two public authorities disagree about the same address, and a caseworker reading either one alone has no way to know."
+
+### 1:30 — 1:48 · The "shouldn't be possible" moment. Scroll to the **coverage gate**.
 
 > "Here's the part I care about most.
 >
@@ -58,9 +68,9 @@ Built on the Sookra Pitch Arc + PAS (Problem · **Agitate** · Solution). The Ag
 >
 > A tool about record integrity that inflates its own number is committing the failure it exists to detect."
 
-### 1:38 — 1:50 · The close. The line they remember.
+### 1:48 — 2:00 · The close. The line they remember.
 
-> "Entity resolution with no shared key. Six deterministic rules. Provenance and a hash on every claim. Gemini and Gemma vote only on the ambiguous tail — delete both models and this still works. The verdict is ours, not a vendor's.
+> "Entity resolution with no shared key. Eight deterministic rules. Provenance and a hash on every claim, persisted to TimescaleDB. The whole pipeline runs as a Render Workflow. Three models on three clouds vote only on the ambiguous tail — delete all three and this still works. The verdict is ours, not a vendor's.
 >
 > We couldn't demo on real child records. They're confidential, and we refused to fake them. So we proved it on Atlanta's own public data instead.
 >
