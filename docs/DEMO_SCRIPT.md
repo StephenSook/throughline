@@ -4,7 +4,7 @@ Built on the Sookra Pitch Arc + PAS (Problem · **Agitate** · Solution). The Ag
 
 **Hard rules from MLH:** under 2:00 · created today · must open with the hackathon name · repo and video stay public afterwards.
 
-**Record:** screen capture of `https://throughline-api-yo1p.onrender.com/` — the deployed URL, never localhost.
+**Record:** screen capture of **`https://throughline-web-gkay.onrender.com`** — the React dashboard, the deployed URL, never localhost. (The API also serves its own dashboard at `throughline-api-yo1p.onrender.com` if you prefer that look.)
 
 **Target 1:55.** Hard ceiling 2:00. The required MLH intro line is technically a "company introduction first" anti-pattern, so say it fast and flat and get to the hook inside five seconds.
 
@@ -52,7 +52,7 @@ Built on the Sookra Pitch Arc + PAS (Problem · **Agitate** · Solution). The Ag
 >
 > Thomasville Heights Elementary. Atlanta's own facilities layer records it as active. The U.S. Department of Education's directory records it as closed. Same street address. Same building.
 >
-> Neither record carries the other's identifier, so nothing in either system connects them. Our matcher found them on name and address, flagged the conflict, and three models on three different clouds voted independently — all three said this one is real.
+> Neither record carries the other's identifier, so nothing in either system connects them. Our matcher found them on name and address, flagged the conflict, and four models on four different clouds voted independently — Google, Google open-weights, DigitalOcean, and Snowflake. They agreed this one is real.
 >
 > I'm not claiming Atlanta doesn't know a school closed. The city calls it a facility and the feds call it a school, so the building may well still be in use. What I'm claiming is exactly what the code claims: two public authorities disagree about the same address, and a caseworker reading either one alone has no way to know."
 
@@ -70,7 +70,7 @@ Built on the Sookra Pitch Arc + PAS (Problem · **Agitate** · Solution). The Ag
 
 ### 1:48 — 2:00 · The close. The line they remember.
 
-> "Entity resolution with no shared key. Eight deterministic rules. Provenance and a hash on every claim, persisted to TimescaleDB. The whole pipeline runs as a Render Workflow. Three models on three clouds vote only on the ambiguous tail — delete all three and this still works. The verdict is ours, not a vendor's.
+> "Entity resolution with no shared key. Eight deterministic rules. Provenance and a hash on every claim, persisted to TimescaleDB. The whole pipeline runs as a Render Workflow. Four models on four clouds vote only on the ambiguous tail — delete all four and this still works. The verdict is ours, not a vendor's.
 >
 > We couldn't demo on real child records. They're confidential, and we refused to fake them. So we proved it on Atlanta's own public data instead.
 >

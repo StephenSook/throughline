@@ -4,7 +4,8 @@
 
 Built at **Hack RenderATL**, 12 August 2026.
 
-**Live:** https://throughline-api-yo1p.onrender.com · **API docs:** [`/docs`](https://throughline-api-yo1p.onrender.com/docs) · **Contract:** [`/openapi.json`](https://throughline-api-yo1p.onrender.com/openapi.json)
+**Dashboard:** https://throughline-web-gkay.onrender.com
+**API:** https://throughline-api-yo1p.onrender.com · [`/docs`](https://throughline-api-yo1p.onrender.com/docs) · [`/openapi.json`](https://throughline-api-yo1p.onrender.com/openapi.json) · [`/api/panel`](https://throughline-api-yo1p.onrender.com/api/panel)
 
 ---
 
@@ -137,8 +138,9 @@ Only on the ambiguous tail, and only to answer one question: is this discrepancy
 | 1 | `gemini-3.6-flash` | Google AI Studio | Hosted frontier model, strong general judgement |
 | 2 | `gemma-4-31b-it` | Google AI Studio, open weights | An agency that cannot send record data to a third-party cloud can run this on its own hardware, so the on-premises path is not a downgrade to nothing |
 | 3 | `openai-gpt-oss-120b` | DigitalOcean Gradient, open weights | A different vendor on different infrastructure, so one provider's outage degrades the panel instead of ending it |
+| 4 | `llama3.3-70b` | Snowflake Cortex, warehouse-native | An agency whose records already live in Snowflake can adjudicate without the data crossing its own warehouse boundary |
 
-Two voters can only agree or deadlock. Three produce a majority. Seats are built from whichever credentials are present and the count is reported, so a two-seat run is visibly a two-seat run.
+Two voters can only agree or deadlock. Four produce a majority with a visible minority. Seats are built from whichever credentials are present and the count is reported, so a two-seat run is visibly a two-seat run.
 
 **The models never produce a number.** They do not count, do not set severity, and do not decide that a divergence exists.
 
@@ -190,11 +192,11 @@ No API key is required to run the engine. `GEMINI_API_KEY` (from [AI Studio](htt
 |---|---|
 | Backend | Python 3.12, FastAPI, httpx, asyncio |
 | Entity resolution | rapidfuzz, custom USPS-style normalizer |
-| Models | Gemini 3.6 Flash, Gemma 4 31B (Google AI Studio), GPT-OSS-120B (DigitalOcean Gradient) |
+| Models | Gemini 3.6 Flash, Gemma 4 31B (Google AI Studio), GPT-OSS-120B (DigitalOcean Gradient), Llama 3.3 70B (Snowflake Cortex) |
 | History | TimescaleDB on Tiger Cloud — hypertables, continuous aggregate, compression |
 | Orchestration | Render Workflows — fan-out probes with per-task retry, then reconcile |
 | Deploy | Render |
-| Dashboard | Jinja2 + hand-written CSS, light and dark, no framework |
+| Dashboard | React + TypeScript + Tailwind + TanStack Query (Render Static Site), plus a zero-dependency Jinja2 dashboard served by the API itself |
 | CI | GitHub Actions — ruff, ruff format, pytest, anti-fabrication guard |
 
 ## Data sources
@@ -209,8 +211,8 @@ No API key is required to run the engine. `GEMINI_API_KEY` (from [AI Studio](htt
 
 ## Team
 
-**Stephen Sookra** — backend, connectors, entity resolution, divergence engine, coverage gate, adjudication panel, API, dashboard, deploy, CI.
-**Khadim** — frontend dashboard.
+**Stephen Sookra** — backend, connectors, entity resolution, divergence engine, coverage gate, adjudication panel, TimescaleDB, Render Workflow, API, deploy, CI.
+**Khadim Drame** — React dashboard: grouped worklist, divergence detail, provenance card, adjudication votes, coverage panel.
 
 Live build status and ownership: [`PLAN.md`](./PLAN.md).
 
