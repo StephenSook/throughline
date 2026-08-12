@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { HistoryBand } from "./components/HistoryBand";
 import { getAllDivergences, getSummary } from "./lib/api";
 import Header from "./components/Header";
 import DegradedBanner from "./components/DegradedBanner";
@@ -28,13 +29,14 @@ export default function App() {
           <div className="text-sm text-crit">{(summaryQuery.error as Error).message}</div>
         )}
         {summaryQuery.data && (
-          <>
-            <StatTiles summary={summaryQuery.data} />
-            {!summaryQuery.data.coverage.sufficient_for_absence_claims && (
-              <CoveragePanel coverage={summaryQuery.data.coverage} />
-            )}
-          </>
-        )}
+  <>
+    <StatTiles summary={summaryQuery.data} />
+    {!summaryQuery.data.coverage.sufficient_for_absence_claims && (
+      <CoveragePanel coverage={summaryQuery.data.coverage} />
+    )}
+    <HistoryBand />
+  </>
+)}
       </div>
 
       <main className="flex-1 min-h-0 px-4 pb-4 grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-4">
