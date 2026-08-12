@@ -116,7 +116,7 @@ The models do one narrow job: judging whether an *already-detected* discrepancy 
 
 That the hardest part of interoperability isn't the pipes, it's knowing when your evidence doesn't support your conclusion. We spent more of the build on the coverage gate than on any single connector, and it's the part that makes the rest trustworthy.
 
-Concretely: probabilistic entity resolution, USPS address normalization, the Census batch geocoder, ArcGIS FeatureServer layer discovery, TimescaleDB hypertables and continuous aggregates, Render's Workflows SDK, and structured-output prompting across three different model families on three clouds.
+Concretely: probabilistic entity resolution, USPS address normalization, the Census batch geocoder, ArcGIS FeatureServer layer discovery, TimescaleDB hypertables and continuous aggregates, Render's Workflows SDK, Snowflake keypair JWT auth, and structured-output prompting across four different model families on four clouds.
 
 ### What's next for Throughline
 
