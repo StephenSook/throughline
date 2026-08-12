@@ -64,23 +64,32 @@ async def fetch_json(
 
             if response.status_code != 200:
                 last_error = f"HTTP {response.status_code}"
-            elif len(body) < min_bytes:
-                # The WAF-challenge shape: a 200 carrying a few hundred bytes of
-                # HTML where a dataset should be. Name it in the error so the
-                # failure is diagnosable rather than mysterious.
-                last_error = (
-                    f"HTTP 200 but only {len(body)} bytes — "
-                    "likely a WAF challenge or block page, not data"
-                )
             else:
+                # Parse FIRST, then judge size. A WAF challenge is an HTML page,
+                # so "small" is only evidence of a block when the body is not
+                # valid JSON. Checking size first rejected `{"count":681}` — a
+                # perfectly good 13-byte answer to a count query — which is a
+                # guard firing on the thing it was built to protect.
                 try:
                     payload = response.json()
                 except ValueError:
-                    last_error = f"HTTP 200 but body is not JSON (starts {body[:60]!r})"
+                    last_error = (
+                        f"HTTP 200 carrying {len(body)} bytes of non-JSON "
+                        f"(starts {body[:60]!r}) — likely a WAF challenge or block "
+                        "page served as 200, not data"
+                    )
                 else:
                     if isinstance(payload, dict) and "error" in payload:
                         # ArcGIS reports service errors inside a 200 body.
                         last_error = f"service error in 200 body: {payload['error']}"
+                    elif len(body) < min_bytes:
+                        # Valid JSON but implausibly small for the payload the
+                        # caller expected. Callers that legitimately expect a
+                        # tiny document pass a lower min_bytes.
+                        last_error = (
+                            f"HTTP 200, valid JSON, but only {len(body)} bytes where at "
+                            f"least {min_bytes} was expected — truncated or empty result"
+                        )
                     else:
                         return payload, started, elapsed
 
