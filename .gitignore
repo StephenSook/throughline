@@ -17,7 +17,7 @@ build/
 .idea/
 *.log
 
-# Fetched source corpora — verifiable via data/manifest.json, not committed
+# Fetched source corpora. Verifiable via data/manifest.json, not committed
 data/raw/
 node_modules/
 web/dist/

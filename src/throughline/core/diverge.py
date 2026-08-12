@@ -79,7 +79,7 @@ def rule_stale_record(entity: Entity) -> list[Divergence]:
                 detail=(
                     f"{claim.source} asserts status {claim.value!r}, but the record's own "
                     f"source date is {claim.observed_at.date().isoformat()} "
-                    f"— {years:.1f} years ago. It is being served as current."
+                    f", {years:.1f} years ago. It is being served as current."
                 ),
                 claims=[claim],
             )
@@ -263,7 +263,7 @@ def rule_address_mismatch(entity: Entity) -> list[Divergence]:
     """Two authorities put the same entity at materially different addresses.
 
     Compares *normalized* addresses, so a divergence here is never an
-    abbreviation or a punctuation difference — those are collapsed before the
+    abbreviation or a punctuation difference, those are collapsed before the
     comparison. What survives is two authorities naming different places.
     """
     claims = [c for c in entity.by_field("address") if c.value]

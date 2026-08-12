@@ -1,11 +1,11 @@
-"""NCES Common Core of Data — the federal school directory.
+"""NCES Common Core of Data, the federal school directory.
 
 The second cross-authority pair, and a structurally different one from the child
 care pair. The Atlanta layer and this one describe the same schools from two
 levels of government: the city's own facilities layer carries `GADOE_ID` (state
 identifier), and the federal directory carries `ncessch` (federal identifier).
 Neither recognises the other's key, which is exactly the interoperability gap
-the product exists to measure — and it is the same gap that leaves a child's
+the product exists to measure, and it is the same gap that leaves a child's
 transcript stranded when they change districts.
 
 Served by the Urban Institute's Education Data API, which republishes NCES CCD

@@ -67,15 +67,15 @@ async def fetch_json(
             else:
                 # Parse FIRST, then judge size. A WAF challenge is an HTML page,
                 # so "small" is only evidence of a block when the body is not
-                # valid JSON. Checking size first rejected `{"count":681}` — a
-                # perfectly good 13-byte answer to a count query — which is a
+                # valid JSON. Checking size first rejected `{"count":681}`, a
+                # perfectly good 13-byte answer to a count query, which is a
                 # guard firing on the thing it was built to protect.
                 try:
                     payload = response.json()
                 except ValueError:
                     last_error = (
                         f"HTTP 200 carrying {len(body)} bytes of non-JSON "
-                        f"(starts {body[:60]!r}) — likely a WAF challenge or block "
+                        f"(starts {body[:60]!r}), likely a WAF challenge or block "
                         "page served as 200, not data"
                     )
                 else:
@@ -88,7 +88,7 @@ async def fetch_json(
                         # tiny document pass a lower min_bytes.
                         last_error = (
                             f"HTTP 200, valid JSON, but only {len(body)} bytes where at "
-                            f"least {min_bytes} was expected — truncated or empty result"
+                            f"least {min_bytes} was expected, truncated or empty result"
                         )
                     else:
                         return payload, started, elapsed
@@ -98,4 +98,4 @@ async def fetch_json(
             # off is cheaper than getting the whole run challenged.
             await asyncio.sleep(2.0 * attempt)
 
-    raise SourceUnavailable(f"{url} — {last_error}")
+    raise SourceUnavailable(f"{url}, {last_error}")

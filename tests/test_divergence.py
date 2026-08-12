@@ -7,7 +7,7 @@ case here is a statement about what Throughline will and will not call a defect.
 Deliberately absent: any assertion of a specific divergence count against live
 Atlanta data. Those numbers change when the city republishes, and an assertion
 like `assert total == 791` would turn a correct update into a red build. Worse,
-a figure hard-coded into a test is a figure the suite then *defends* — correcting
+a figure hard-coded into a test is a figure the suite then *defends*, correcting
 it later reads as a regression. Tests here assert behaviour; the live numbers are
 computed and displayed, never asserted.
 """
@@ -91,7 +91,7 @@ class TestNormalize:
 
     @pytest.mark.parametrize("blank", [None, "", "   ", "\t"])
     def test_blank_address_is_empty_not_invented(self, blank):
-        """A blank address must stay detectably blank — it is itself a finding."""
+        """A blank address must stay detectably blank, it is itself a finding."""
         assert normalize_address(blank) == ""
 
     def test_org_suffixes_dropped_from_names(self):
@@ -216,7 +216,7 @@ class TestEmptyRequiredField:
 
 
 # --------------------------------------------------------------------------
-# The coverage gate — the honesty mechanism
+# The coverage gate: the honesty mechanism
 # --------------------------------------------------------------------------
 
 

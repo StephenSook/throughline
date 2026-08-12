@@ -1,4 +1,4 @@
-"""US Census Bureau Geocoder — the federal address authority.
+"""US Census Bureau Geocoder, the federal address authority.
 
 This is the connector that makes the whole audit defensible. When Atlanta says a
 licensed child care facility sits at an address, and the U.S. Census Bureau's
@@ -118,7 +118,7 @@ async def geocode_batch(
 
     if not results and usable:
         raise SourceUnavailable(
-            f"{BATCH_URL} — geocoded 0 of {len(usable)} addresses; "
+            f"{BATCH_URL}, geocoded 0 of {len(usable)} addresses; "
             "treating as source outage rather than as evidence"
         )
     return results, fetched_at

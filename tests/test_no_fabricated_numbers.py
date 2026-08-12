@@ -78,8 +78,8 @@ class TestGuardIsNotVacuous:
     """
 
     def test_it_actually_sees_files(self):
-        assert repo_files((".html",)), "resolved zero templates — guard would be vacuous"
-        assert repo_files((".py",)), "resolved zero python files — guard would be vacuous"
+        assert repo_files((".html",)), "resolved zero templates, guard would be vacuous"
+        assert repo_files((".py",)), "resolved zero python files, guard would be vacuous"
 
     def test_it_sees_untracked_files(self, tmp_path):
         """A file that is not yet committed must still be in scope."""

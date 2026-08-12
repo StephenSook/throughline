@@ -1,4 +1,4 @@
-# Throughline — Render Blueprint.
+# Throughline: Render Blueprint.
 # NOTE: Render Blueprints cannot yet create or manage Workflows. The reconciliation
 # Workflow is a separate service created in the dashboard (New > Workflow).
 services:

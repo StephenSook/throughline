@@ -2,8 +2,8 @@
 
 The guard in `fetch_json` is the thing standing between a WAF challenge page and
 our corpus, so it needs testing in both directions: it must catch a block page,
-and it must not reject legitimate data. It initially failed the second half — a
-13-byte `{"count":681}` was rejected as a suspected block — which is a guard
+and it must not reject legitimate data. It initially failed the second half, a
+13-byte `{"count":681}` was rejected as a suspected block, which is a guard
 firing on exactly what it exists to protect.
 """
 

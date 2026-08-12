@@ -3,14 +3,14 @@
 Three layers on one ArcGIS Online organisation, each an independent authority
 about places in Atlanta:
 
-  A  Atlanta_Child_Care_Facilities  — the city's republication of the Georgia
+  A  Atlanta_Child_Care_Facilities: the city's republication of the Georgia
      DECAL state licensing registry. Every row carries its own SOURCE and
      SOURCEDATE, and that SOURCEDATE is 2021-10-21. The provenance we need is
      already in the data; nobody had read it.
-  B  Business_Licenses_2026         — the city's own occupational tax licence
+  B  Business_Licenses_2026: the city's own occupational tax licence
      roll. Independent of A, and current, but small: see the coverage gate in
      `core.diverge`, which measures whether it is large enough to corroborate.
-  D  Atlanta_Public_Schools         — school facilities, carrying GADOE_ID,
+  D  Atlanta_Public_Schools: school facilities, carrying GADOE_ID,
      which lets us join to the federal directory.
 
 Georgia DECAL's own API (dcle2-decalapiprd.azurewebsites.net) is auth-gated and
@@ -144,7 +144,7 @@ async def fetch_childcare(client: httpx.AsyncClient) -> tuple[list[Claim], dict]
 
 
 async def fetch_licenses(client: httpx.AsyncClient) -> tuple[list[Claim], dict]:
-    """Source B. The city's own licence roll — the independent check."""
+    """Source B. The city's own licence roll, the independent check."""
     rows, fetched_at, elapsed = await _fetch_features(client, LICENSES_URL)
     claims: list[Claim] = []
 

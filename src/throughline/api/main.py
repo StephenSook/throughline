@@ -63,7 +63,7 @@ async def warm() -> None:
         # deterministic engine only, so the dashboard has real numbers within
         # seconds of boot. The panel adds up to two dozen model calls, and
         # making the first paint wait on those means a judge opening a cold
-        # link sees a 503 for minutes — which is a worse failure than having no
+        # link sees a 503 for minutes, which is a worse failure than having no
         # panel at all.
         with contextlib.suppress(Exception):
             await STORE.execute(geocode=True, adjudicate_tail=False)
@@ -232,7 +232,7 @@ async def matches(limit: int = Query(100, ge=1, le=1000)) -> dict:
 
 @app.get("/api/timeseries/divergence-rate", tags=["findings"])
 async def timeseries(hours: int = Query(168, ge=1, le=8760)) -> dict:
-    """Divergence rate over time — the north-star metric. It should fall.
+    """Divergence rate over time, the north-star metric. It should fall.
 
     Served from a TimescaleDB continuous aggregate when history is configured,
     so the chart stays fast as the series grows rather than rescanning every
@@ -260,7 +260,7 @@ async def timeseries(hours: int = Query(168, ge=1, le=8760)) -> dict:
 async def panel_diagnostics() -> dict:
     """Which panel seats are configured, and what each one is pointed at.
 
-    Reports configuration only — never a credential, not even a prefix. Exists
+    Reports configuration only: never a credential, not even a prefix. Exists
     because a seat that fails in production and works locally is an environment
     difference, and guessing at which one wastes more time than saying it.
     """
@@ -369,7 +369,7 @@ async def dashboard(request: Request) -> HTMLResponse:
             "storage": STORE_DB.status(),
             "timescale": (await STORE_DB.hypertable_stats()),
             "persistence": (run.summary.get("persistence") if run else None),
-            # The worklist keeps strict severity order — it is ranked by
+            # The worklist keeps strict severity order: it is ranked by
             # consequence to a person, and reordering it to surface a feature
             # would contradict the principle printed above it.
             "divergences": [d.to_dict() for d in (run.divergences[:40] if run else [])],

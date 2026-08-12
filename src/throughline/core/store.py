@@ -1,12 +1,12 @@
 """Persistence on TimescaleDB.
 
 Optional by design. Throughline runs and reports correctly with no database at
-all — `DATABASE_URL` unset means every endpoint still works from the in-process
+all, `DATABASE_URL` unset means every endpoint still works from the in-process
 run, and the dashboard says so. What the database adds is the thing a snapshot
 can never give you: **history**.
 
 The product spec's north-star metric is "divergence rate per field, per
-jurisdiction, over time — it should fall." A number without a series behind it
+jurisdiction, over time, it should fall." A number without a series behind it
 answers "how wrong is the record today" and permanently forecloses "is this
 getting better", which is the question an agency has to answer to a court, a
 funder, or a consent-decree monitor. So observations are appended, never

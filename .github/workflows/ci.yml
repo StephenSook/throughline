@@ -60,5 +60,10 @@ jobs:
             exit 1
           fi
 
+      - name: No em dashes
+        # An em dash is the most reliable tell that prose was machine-written,
+        # so this repo does not ship one. Bare exit path, no pipe.
+        run: uv run python scripts/no_em_dash.py --check
+
       - name: App imports and serves
         run: uv run python -c "from throughline.api.main import app; assert app.routes"

@@ -4,7 +4,7 @@ Two ideas carry the whole system.
 
 A **Claim** is one authority's assertion about one field of one entity, at one
 point in time, with the evidence attached. We never collapse claims into a
-"current value" — that collapse is exactly what the institutions we read from
+"current value", that collapse is exactly what the institutions we read from
 already did, and it is what destroyed the information we are trying to recover.
 
 A **Divergence** is what we found when two authorities disagreed. It carries the

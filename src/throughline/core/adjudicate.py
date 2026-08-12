@@ -8,25 +8,25 @@ registries are recording.
 They never count anything, never score severity, and never decide that a
 divergence exists. Delete this entire module and Throughline still ingests five
 public sources, resolves entities across them, detects seven kinds of
-divergence, persists the series, and reports a rate — because the verdict is
+divergence, persists the series, and reports a rate, because the verdict is
 deterministic and lives in `core.diverge`. That is the difference between a
 system and a wrapper around somebody else's API, and it is deliberate.
 
 **Four independent voters, on four different clouds.** One model agreeing with
 itself is not a panel, and two voters cannot break a tie:
 
-  * **Gemini 3.6 Flash** — hosted frontier model, Google. Strong general
+  * **Gemini 3.6 Flash**, hosted frontier model, Google. Strong general
     judgement.
-  * **Gemma 4 31B** — open-weights, Apache-2.0, Google AI Studio. Present for a
+  * **Gemma 4 31B**: open-weights, Apache-2.0, Google AI Studio. Present for a
     real architectural reason rather than a second opinion: an agency that
     cannot send record data to a third-party cloud can run Gemma on its own
     hardware and keep this capability, so the on-premises path is not a
     downgrade to nothing.
-  * **GPT-OSS-120B** — open-weights, Apache-2.0, served on DigitalOcean Gradient.
+  * **GPT-OSS-120B**: open-weights, Apache-2.0, served on DigitalOcean Gradient.
     A different vendor on different infrastructure, so a single provider outage
     degrades the panel rather than ending it, and no one company's model can
     quietly decide every ambiguous case.
-  * **Llama 3.3 70B** — on Snowflake Cortex, reached through the SQL API. The
+  * **Llama 3.3 70B**, on Snowflake Cortex, reached through the SQL API. The
     warehouse-native vantage point: an agency whose records already live in
     Snowflake can adjudicate without the data crossing its own warehouse
     boundary at all.
@@ -153,7 +153,7 @@ async def _ask(client: httpx.AsyncClient, model: str, prompt: str, api_key: str)
 
     Returns an `error` dict rather than a vote when the model could not be
     reached or did not answer usably. A model that did not answer must never be
-    silently counted as agreement — that would let an outage manufacture
+    silently counted as agreement, that would let an outage manufacture
     consensus.
     """
     # Enough headroom that a reasoning model's thinking budget cannot starve the
@@ -291,7 +291,7 @@ async def _ask_snowflake(client: httpx.AsyncClient, prompt: str) -> dict:
     # Reached through the SQL API rather than the Cortex inference endpoint.
     # `/api/v2/cortex/inference:complete` returns 403 "account is not allowed to
     # access this endpoint" on trial accounts, while `SNOWFLAKE.CORTEX.COMPLETE`
-    # over `/api/v2/statements` works on the same credentials — so the model is
+    # over `/api/v2/statements` works on the same credentials, so the model is
     # reached the way a warehouse user would actually reach it, in SQL.
     statement = f"SELECT SNOWFLAKE.CORTEX.COMPLETE('{SNOWFLAKE_MODEL}', ?) AS verdict"
     try:
@@ -326,7 +326,7 @@ async def _ask_snowflake(client: httpx.AsyncClient, prompt: str) -> dict:
         return {
             "error": (
                 f"HTTP {response.status_code} from {account}.snowflakecomputing.com"
-                f" — {response.text[:140]}"
+                f", {response.text[:140]}"
             )
         }
 

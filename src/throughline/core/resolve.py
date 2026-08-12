@@ -152,7 +152,7 @@ def resolve(claims: list[Claim]) -> tuple[list[Entity], list[MatchCandidate]]:
                             merged.add((right.source, right.subject))
 
         # Unmatched records still become entities. A facility that appears in the
-        # stale registry and nowhere else is not noise to be dropped — it is the
+        # stale registry and nowhere else is not noise to be dropped, it is the
         # single most interesting row in the dataset, and dropping it would make
         # the divergence rate look better than it is.
         for member in members:

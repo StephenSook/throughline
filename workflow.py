@@ -1,4 +1,4 @@
-"""Render Workflow — continuous record-integrity monitoring.
+"""Render Workflow, continuous record-integrity monitoring.
 
 This is the product's real production shape, not a demo wrapper. The spec's
 Phase 1 is *"productize the audit as continuous monitoring"*: a one-off answer
@@ -21,7 +21,7 @@ Why a Workflow rather than a cron job or a background worker:
 
 Tasks are `async def`. The SDK's executor runs inside an established event loop
 and awaits coroutine tasks natively, so calling `asyncio.run()` inside a task
-raises "cannot be called from a running event loop" — which is exactly how the
+raises "cannot be called from a running event loop", which is exactly how the
 first deployed run failed, and it retried four times before surfacing it.
 
 Deployed as a separate Render service (New > Workflow). Render Blueprints cannot
@@ -95,7 +95,7 @@ async def _probe(source_id: str) -> dict:
     timeout_seconds=180,
 )
 async def check_source(source_id: str) -> dict:
-    """Probe one authority. Fans out — one invocation per source.
+    """Probe one authority. Fans out, one invocation per source.
 
     Each source retries in isolation, which is the whole reason these are
     separate tasks rather than one loop.

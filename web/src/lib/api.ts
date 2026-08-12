@@ -6,7 +6,7 @@ export const API_BASE =
 // Every endpoint here returns JSON that either IS the resource (e.g.
 // /api/divergences/{id}) or wraps it in an envelope with pagination /
 // degraded-banner metadata alongside it (e.g. /api/divergences → { items }).
-// unwrap() only handles the transport concern — non-2xx and non-JSON bodies —
+// unwrap() only handles the transport concern, non-2xx and non-JSON bodies
 // callers reach into `.items` themselves so the envelope fields aren't lost.
 async function unwrap<T>(res: Response): Promise<T> {
   if (!res.ok) {

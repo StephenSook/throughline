@@ -99,7 +99,7 @@ CREATE INDEX IF NOT EXISTS idx_claim_id ON claim_observations (claim_id, fetched
 --
 -- This is the reason we are on TimescaleDB rather than plain Postgres. The
 -- dashboard chart reads pre-materialised buckets instead of scanning every
--- observation ever recorded, so the chart stays fast as history grows — which
+-- observation ever recorded, so the chart stays fast as history grows, which
 -- for a longitudinal benchmark is the entire point, since the dataset only
 -- ever gets longer and the benchmark is worthless if it is not longitudinal.
 -- ---------------------------------------------------------------------------

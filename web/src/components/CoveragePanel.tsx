@@ -4,7 +4,7 @@ import { formatInt, formatPct } from "../lib/format";
 export default function CoveragePanel({ coverage }: { coverage: Coverage }) {
   return (
     <div className="border border-line border-l-[3px] border-l-med bg-panel px-4 py-3">
-      <div className="font-semibold text-sm mb-1">Coverage gate — findings suppressed</div>
+      <div className="font-semibold text-sm mb-1">Coverage gate, findings suppressed</div>
       <p className="text-sm text-muted m-0">
         {coverage.note}
         <br />

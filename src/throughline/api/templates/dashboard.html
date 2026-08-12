@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Throughline — record integrity for Atlanta public records</title>
+<title>Throughline, record integrity for Atlanta public records</title>
 <style>
 :root{
   --bg:#fbfaf8; --panel:#ffffff; --ink:#16150f; --muted:#6b6a62; --line:#e4e1d9;
@@ -94,7 +94,7 @@ button:disabled{opacity:.5;cursor:progress}
 .actions{display:flex;gap:14px;align-items:center;margin:22px 0 8px;flex-wrap:wrap}
 #runout{font-family:var(--mono);font-size:12.5px;color:var(--muted)}
 
-/* Adjudication panel. Dissent is shown, never averaged away — a panel that
+/* Adjudication panel. Dissent is shown, never averaged away, a panel that
    hides disagreement is just an average wearing a panel's clothes. */
 .panel{margin-top:10px;padding:9px 11px;border:1px solid var(--line);
   border-left:2px solid var(--accent);border-radius:4px;background:var(--bg)}
@@ -159,7 +159,7 @@ footer ul{margin:8px 0 0;padding-left:20px}
 
 <p class="lede">Atlanta publishes <b>681 licensed child care facilities</b>. The dataset's own
 metadata says it came from the Georgia state licensing registry on
-<b>21 October 2021</b> — and it has been served as current ever since.</p>
+<b>21 October 2021</b>, and it has been served as current ever since.</p>
 <p class="sub">Throughline reconciles what one institution asserts against independent
 authorities and reports where they disagree, with provenance on every field. Every number
 below is computed from live public APIs during a reconciliation run. Nothing here is
@@ -216,7 +216,7 @@ hardcoded, and any figure can be walked back to its source record.</p>
 
 {% if coverage %}
 <div class="gate">
-  <div class="t">Coverage gate{% if not coverage.sufficient_for_absence_claims %} — findings
+  <div class="t">Coverage gate{% if not coverage.sufficient_for_absence_claims %}, findings
     suppressed{% endif %}</div>
   <p>{{ coverage.note }}<br>
   Measured coverage of <code>{{ coverage.stale_authority }}</code> by
@@ -229,7 +229,7 @@ hardcoded, and any figure can be walked back to its source record.</p>
 
 {% if adjudication %}
 <div class="panelbox">
-  <div class="t">Adjudication panel{% if not adjudication.enabled %} — not running{% endif %}</div>
+  <div class="t">Adjudication panel{% if not adjudication.enabled %}, not running{% endif %}</div>
   {% if adjudication.enabled %}
   <p>Two models vote independently on whether an <em>already-detected</em> discrepancy is a
   genuine conflict between authorities or an artefact of formatting and abbreviation:
@@ -317,7 +317,7 @@ rule in <code>core/diverge.py</code>; none is a model's opinion.</p>
 </div>
 {% endif %}
 
-<h2>Worklist — ranked by consequence, not by age</h2>
+<h2>Worklist, ranked by consequence, not by age</h2>
 <div class="tblwrap">
 {% if divergences %}
 <table>

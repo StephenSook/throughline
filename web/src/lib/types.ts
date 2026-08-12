@@ -40,7 +40,7 @@ export interface Persistence {
   claims: number;
 }
 
-// GET /api/summary — spreads run.summary, then adds degraded / sources_healthy / sources_total.
+// GET /api/summary, spreads run.summary, then adds degraded / sources_healthy / sources_total.
 export interface Summary {
   entities_resolved: number;
   claims: number;
@@ -61,7 +61,7 @@ export interface Summary {
   sources_healthy: number;
 }
 
-// One entry in a divergence's values[] — a single claim from a single source.
+// One entry in a divergence's values[], a single claim from a single source.
 export interface ClaimValue {
   claim_id: string;
   source: string;
@@ -102,7 +102,7 @@ export interface Divergence {
   values: ClaimValue[];
 }
 
-// GET /api/divergences — wrapped: the array lives at .items, not the top level.
+// GET /api/divergences, wrapped: the array lives at .items, not the top level.
 export interface DivergencesResponse {
   total: number;
   offset: number;
